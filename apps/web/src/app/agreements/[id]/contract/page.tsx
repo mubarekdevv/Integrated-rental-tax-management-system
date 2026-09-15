@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { generateQrDataUrl } from "@/lib/services/qrcode";
 import { PrintButton } from "./print-button";
 
-export default async function WulDocumentPage({ params }: PageProps<"/agreements/[id]/wul">) {
+export default async function ContractDocumentPage({ params }: PageProps<"/agreements/[id]/contract">) {
   const { id } = await params;
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -39,7 +39,7 @@ export default async function WulDocumentPage({ params }: PageProps<"/agreements
       <div className="space-y-6 rounded-lg border bg-white p-8 text-sm text-black print:border-0">
         <div className="flex items-center justify-between border-b pb-4">
           <div>
-            <h1 className="text-lg font-bold">Rental Agreement (WUL)</h1>
+            <h1 className="text-lg font-bold">Contract Agreement</h1>
             <p className="text-muted-foreground">Housing Development and Administration Bureau</p>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -47,7 +47,7 @@ export default async function WulDocumentPage({ params }: PageProps<"/agreements
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="WUL Number" value={agreement.wulNumber} />
+          <Field label="Contract Number" value={agreement.wulNumber} />
           <Field label="Agreement Number" value={agreement.agreementNumber} />
           <Field label="Issued" value={agreement.wulIssuedAt?.toDateString() ?? "-"} />
           <Field label="Status" value={agreement.status.replaceAll("_", " ")} />
@@ -87,9 +87,10 @@ export default async function WulDocumentPage({ params }: PageProps<"/agreements
           <h2 className="mb-2 font-semibold">4. Conditions</h2>
           <p className="text-muted-foreground">
             This document certifies that the above rental agreement has been reviewed and approved by the Housing
-            Development and Administration Bureau. Disputes regarding rent, damages, or termination are handled
-            according to applicable housing regulations. Scan the QR code above to verify the current status of this
-            agreement online.
+            Development and Administration Bureau in accordance with the Housing Rent Control and Management
+            Proclamation No. 1320/2016 and Directive No. 184/2025. Disputes regarding rent, damages, or termination
+            are handled according to those regulations. Rent must be paid through a bank or other legal electronic
+            means. Scan the QR code above to verify the current status of this agreement online.
           </p>
         </section>
 

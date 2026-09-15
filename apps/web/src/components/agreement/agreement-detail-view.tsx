@@ -6,6 +6,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { PayDialog } from "@/components/shared/pay-dialog";
 import { ReviewAgreementButtons } from "@/components/agreement/review-agreement-buttons";
 import { RequestTerminationButton, ApproveTerminationButton } from "@/components/agreement/termination-controls";
+import { UpdatePriceDialog } from "@/components/agreement/update-price-dialog";
+import { RenewAgreementDialog } from "@/components/agreement/renew-agreement-dialog";
 import { AssessTaxDialog } from "@/components/tax/assess-tax-dialog";
 import { generateQrDataUrl } from "@/lib/services/qrcode";
 import type { AgreementDetail } from "@/lib/services/agreement-detail.service";
@@ -14,9 +16,11 @@ import type { UserRole } from "@/generated/prisma/enums";
 export async function AgreementDetailView({
   agreement,
   viewerRole,
+  viewerUserId,
 }: {
   agreement: AgreementDetail;
   viewerRole: UserRole;
+  viewerUserId: string;
 }) {
   const serviceFeePaid = agreement.payments.some((p) => p.purpose === "SERVICE_FEE" && p.status === "COMPLETED");
   const qrDataUrl = agreement.wulQrToken
@@ -30,6 +34,8 @@ export async function AgreementDetailView({
     (viewerRole === "PROPERTY_OWNER" || viewerRole === "TENANT") && agreement.status === "ACTIVE" && !agreement.terminationRequestedById;
   const canApproveTermination = viewerRole === "HOUSING_OFFICER" && agreement.status === "ACTIVE" && !!agreement.terminationRequestedById;
   const canAssessTax = viewerRole === "TAX_OFFICER" && agreement.status === "ACTIVE";
+  const canManageActiveAgreement =
+    (viewerRole === "PROPERTY_OWNER" || viewerRole === "SUPER_ADMIN") && agreement.status === "ACTIVE";
 
   return (
     <div className="space-y-4">
@@ -102,19 +108,19 @@ export async function AgreementDetailView({
       {agreement.wulNumber && (
         <Card>
           <CardHeader>
-            <CardTitle>WUL / Rental Agreement Document</CardTitle>
+            <CardTitle>Contract Agreement</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             {qrDataUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrDataUrl} alt="WUL verification QR code" width={140} height={140} className="rounded border" />
+              <img src={qrDataUrl} alt="Contract verification QR code" width={140} height={140} className="rounded border" />
             )}
             <div className="space-y-1 text-sm">
               <p>
-                WUL Number: <span className="font-mono font-medium">{agreement.wulNumber}</span>
+                Contract Number: <span className="font-mono font-medium">{agreement.wulNumber}</span>
               </p>
               <p className="text-muted-foreground">Issued {agreement.wulIssuedAt?.toDateString()}</p>
-              <Link href={`/agreements/${agreement.id}/wul`} className="text-primary underline">
+              <Link href={`/agreements/${agreement.id}/contract`} className="text-primary underline">
                 View / print full document
               </Link>
               <br />
@@ -192,6 +198,7 @@ export async function AgreementDetailView({
                     <TableHead>Reason</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -201,6 +208,11 @@ export async function AgreementDetailView({
                       <TableCell>{Number(p.calculatedAmountEtb).toLocaleString()} ETB</TableCell>
                       <TableCell>
                         <StatusBadge status={p.status} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {p.status === "APPROVED" && p.responsiblePartyId === viewerUserId && (
+                          <PayDialog purpose="PENALTY" amountEtb={Number(p.calculatedAmountEtb)} penaltyId={p.id} label="Pay Penalty" />
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -246,6 +258,16 @@ export async function AgreementDetailView({
       )}
 
       <div className="flex flex-wrap gap-2">
+        {canManageActiveAgreement && (
+          <>
+            <UpdatePriceDialog agreementId={agreement.id} currentRentEtb={Number(agreement.rentalAmountEtb)} />
+            <RenewAgreementDialog
+              agreementId={agreement.id}
+              currentEndDate={agreement.endDate.toDateString()}
+              currentRentEtb={Number(agreement.rentalAmountEtb)}
+            />
+          </>
+        )}
         {canRequestTermination && <RequestTerminationButton agreementId={agreement.id} />}
         {canApproveTermination && <ApproveTerminationButton agreementId={agreement.id} />}
       </div>

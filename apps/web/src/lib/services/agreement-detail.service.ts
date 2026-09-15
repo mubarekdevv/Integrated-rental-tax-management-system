@@ -4,7 +4,9 @@ export async function getAgreementDetail(agreementId: string) {
   return prisma.rentalAgreement.findUnique({
     where: { id: agreementId },
     include: {
-      property: { include: { subCity: true, woreda: true } },
+      property: {
+        include: { subCity: true, woreda: true, ownerships: { include: { ownerProfile: true } } },
+      },
       tenant: { include: { user: true } },
       payments: { orderBy: { createdAt: "desc" } },
       taxAssessments: { orderBy: { createdAt: "desc" }, include: { payment: true } },

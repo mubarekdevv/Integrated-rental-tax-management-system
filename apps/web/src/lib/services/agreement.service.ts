@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db/prisma";
 import { checkRentalPrice } from "@/lib/services/pricing";
-import { generateAgreementNumber, generateWulNumber, generateQrToken } from "@/lib/services/reference";
+import { generateAgreementNumber, generateContractNumber, generateQrToken } from "@/lib/services/reference";
 import { writeAuditLog } from "@/lib/services/audit";
 import { createNotification } from "@/lib/services/notifications";
 import { getSystemConfig } from "@/lib/services/config";
-import type { PaymentFrequency } from "@/generated/prisma/enums";
+import { assertOwnsProperty, assertPartyToAgreement } from "@/lib/auth/record-access";
+import type { PaymentFrequency, UserRole } from "@/generated/prisma/enums";
 
 const DEFAULT_SERVICE_FEE_PERCENTAGE = 2; // % of the first year's rent, configurable via SystemConfiguration.
 
@@ -19,6 +20,8 @@ export interface CreateAgreementInput {
 }
 
 export async function createAgreement(input: CreateAgreementInput) {
+  await assertOwnsProperty(input.createdById, input.propertyId);
+
   const property = await prisma.property.findUniqueOrThrow({ where: { id: input.propertyId } });
   if (property.status !== "APPROVED" && property.status !== "ACTIVE") {
     throw new Error("The property must be approved by a housing officer before an agreement can be created.");
@@ -142,14 +145,15 @@ export async function reviewAgreement(
       if (!feePaid) {
         throw new Error("The service fee must be paid before the agreement can be approved.");
       }
-      wulNumber = generateWulNumber(agreement.property.subCityId);
+      wulNumber = generateContractNumber(agreement.property.subCityId);
       wulQrToken = generateQrToken();
       wulIssuedAt = new Date();
     }
 
     // Approval and activation are the same moment in this workflow: once the
-    // WUL is issued the tenancy is live, so the agreement goes straight to
-    // ACTIVE rather than resting in an intermediate APPROVED state.
+    // contract agreement is issued the tenancy is live, so the agreement
+    // goes straight to ACTIVE rather than resting in an intermediate
+    // APPROVED state.
     const newStatus = decision === "APPROVED" ? "ACTIVE" : decision;
 
     const updated = await tx.rentalAgreement.update({
@@ -216,6 +220,7 @@ export interface UpdateAgreementPriceInput {
   newRentalAmountEtb: number;
   reason: string;
   actorUserId: string;
+  actorRole: UserRole;
 }
 
 /** Records a price change as a new version, preserves history, re-checks the
@@ -225,6 +230,13 @@ export async function updateAgreementPrice(input: UpdateAgreementPriceInput) {
     where: { id: input.agreementId },
     include: { property: true },
   });
+
+  if (agreement.status !== "ACTIVE") {
+    throw new Error("Only active agreements can have their price updated.");
+  }
+  if (input.actorRole !== "SUPER_ADMIN") {
+    await assertOwnsProperty(input.actorUserId, agreement.propertyId);
+  }
 
   const priceCheck = await checkRentalPrice(agreement.property, input.newRentalAmountEtb);
 
@@ -269,6 +281,20 @@ export async function updateAgreementPrice(input: UpdateAgreementPriceInput) {
       tx,
     });
 
+    // Tax is calculated from the agreement's rental amount, so the tax
+    // authority needs to know when it changes.
+    const taxOfficers = await tx.user.findMany({ where: { role: "TAX_OFFICER", isActive: true } });
+    for (const officer of taxOfficers) {
+      await createNotification({
+        userId: officer.id,
+        type: "SYSTEM",
+        title: "Agreement rent updated",
+        message: `Agreement ${agreement.agreementNumber} rent changed from ${agreement.rentalAmountEtb} to ${input.newRentalAmountEtb} ETB. Re-assessment may be needed.`,
+        agreementId: input.agreementId,
+        tx,
+      });
+    }
+
     return updated;
   });
 }
@@ -278,10 +304,21 @@ export interface RenewAgreementInput {
   newEndDate: Date;
   newRentalAmountEtb?: number;
   actorUserId: string;
+  actorRole: UserRole;
 }
 
 export async function renewAgreement(input: RenewAgreementInput) {
   const agreement = await prisma.rentalAgreement.findUniqueOrThrow({ where: { id: input.agreementId } });
+
+  if (agreement.status !== "ACTIVE") {
+    throw new Error("Only active agreements can be renewed.");
+  }
+  if (input.actorRole !== "SUPER_ADMIN") {
+    await assertOwnsProperty(input.actorUserId, agreement.propertyId);
+  }
+  if (input.newEndDate <= agreement.endDate) {
+    throw new Error("The renewed end date must be after the current end date.");
+  }
 
   return prisma.$transaction(async (tx) => {
     const lastVersion = await tx.agreementVersion.findFirst({
@@ -325,14 +362,38 @@ export async function renewAgreement(input: RenewAgreementInput) {
 }
 
 export async function requestTermination(agreementId: string, actorUserId: string, reason: string) {
-  const agreement = await prisma.rentalAgreement.findUniqueOrThrow({ where: { id: agreementId } });
+  const { agreement } = await assertPartyToAgreement(actorUserId, agreementId);
   if (agreement.status !== "ACTIVE") {
     throw new Error("Only active agreements can have termination requested.");
   }
-  return prisma.rentalAgreement.update({
+
+  const updated = await prisma.rentalAgreement.update({
     where: { id: agreementId },
     data: { terminationRequestedById: actorUserId, terminationReason: reason },
   });
+
+  await writeAuditLog({
+    actorId: actorUserId,
+    action: "AGREEMENT_TERMINATION_REQUESTED",
+    entityType: "RentalAgreement",
+    entityId: agreementId,
+    newValue: { reason },
+  });
+
+  // Notify housing officers so a request doesn't sit invisible until someone
+  // happens to open the terminations queue.
+  const housingOfficers = await prisma.user.findMany({ where: { role: "HOUSING_OFFICER", isActive: true } });
+  for (const officer of housingOfficers) {
+    await createNotification({
+      userId: officer.id,
+      type: "TERMINATION",
+      title: "Termination requested",
+      message: `Agreement ${agreement.agreementNumber} termination requested: ${reason}`,
+      agreementId,
+    });
+  }
+
+  return updated;
 }
 
 export async function approveTermination(agreementId: string, officerId: string) {

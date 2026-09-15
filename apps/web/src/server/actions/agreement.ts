@@ -67,15 +67,19 @@ export async function reviewAgreementAction(agreementId: string, decision: Agree
 
 export async function updateAgreementPriceAction(agreementId: string, newRentalAmountEtb: number, reason: string) {
   const user = await requireUser();
-  await updateAgreementPrice({ agreementId, newRentalAmountEtb, reason, actorUserId: user.id });
+  await updateAgreementPrice({ agreementId, newRentalAmountEtb, reason, actorUserId: user.id, actorRole: user.role });
   revalidatePath("/dashboard/owner/agreements");
+  revalidatePath(`/dashboard/owner/agreements/${agreementId}`);
+  revalidatePath(`/dashboard/tenant/agreements/${agreementId}`);
 }
 
 export async function renewAgreementAction(agreementId: string, newEndDate: Date, newRentalAmountEtb?: number) {
   const user = await requireUser();
-  await renewAgreement({ agreementId, newEndDate, newRentalAmountEtb, actorUserId: user.id });
+  await renewAgreement({ agreementId, newEndDate, newRentalAmountEtb, actorUserId: user.id, actorRole: user.role });
   revalidatePath("/dashboard/owner/agreements");
+  revalidatePath(`/dashboard/owner/agreements/${agreementId}`);
   revalidatePath("/dashboard/tenant/agreements");
+  revalidatePath(`/dashboard/tenant/agreements/${agreementId}`);
 }
 
 export async function requestTerminationAction(agreementId: string, reason: string) {

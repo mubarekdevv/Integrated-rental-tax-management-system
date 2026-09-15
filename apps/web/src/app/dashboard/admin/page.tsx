@@ -3,6 +3,7 @@ import { getAdminDashboard } from "@/lib/services/dashboard.service";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RoleDistributionChart } from "@/components/shared/role-distribution-chart";
+import { PageHeader } from "@/components/shared/page-header";
 import { ROLE_LABELS } from "@/lib/nav-config";
 import type { UserRole } from "@/generated/prisma/enums";
 
@@ -12,7 +13,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">System Overview</h1>
+      <PageHeader title="System Overview" description="Users, activity and configuration at a glance." />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Users" value={totalUsers} icon={Users} />

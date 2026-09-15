@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth/auth";
 import { getOwnerDashboard } from "@/lib/services/dashboard.service";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -33,15 +34,15 @@ export default async function OwnerDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Welcome, {session!.user.firstName}</h1>
-          <p className="text-sm text-muted-foreground">Here is an overview of your properties and agreements.</p>
-        </div>
-        <Button asChild>
-          <Link href="/dashboard/owner/properties/new">Register Property</Link>
-        </Button>
-      </div>
+      <PageHeader
+        title={`Welcome, ${session!.user.firstName}`}
+        description="Here is an overview of your properties and agreements."
+        actions={
+          <Button asChild>
+            <Link href="/dashboard/owner/properties/new">Register Property</Link>
+          </Button>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Properties" value={stats.totalProperties} icon={Home} />

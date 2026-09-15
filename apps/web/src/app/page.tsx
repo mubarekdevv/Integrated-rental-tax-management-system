@@ -23,7 +23,8 @@ export default async function HomePage() {
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
             A single, government-backed platform connecting property owners, tenants, housing offices and tax
-            authorities — from property registration to rental agreement, service fees, WUL and tax compliance.
+            authorities — from property registration to rental agreement, service fees, the contract agreement and
+            tax compliance.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">
@@ -47,7 +48,7 @@ export default async function HomePage() {
         <Feature
           icon={FileCheck2}
           title="Digital Rental Agreements"
-          description="Register properties, create agreements and issue a verifiable WUL document with a QR code — end to end."
+          description="Register properties, create agreements and issue a verifiable contract agreement with a QR code — end to end."
         />
         <Feature
           icon={Receipt}

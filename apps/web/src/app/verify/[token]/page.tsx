@@ -4,7 +4,7 @@ import { PublicHeader } from "@/components/shared/public-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/status-badge";
 
-export default async function VerifyWulPage({ params }: PageProps<"/verify/[token]">) {
+export default async function VerifyContractPage({ params }: PageProps<"/verify/[token]">) {
   const { token } = await params;
   const agreement = await prisma.rentalAgreement.findUnique({
     where: { wulQrToken: token },
@@ -22,14 +22,14 @@ export default async function VerifyWulPage({ params }: PageProps<"/verify/[toke
             ) : (
               <XCircle className="mx-auto size-12 text-destructive" />
             )}
-            <CardTitle className="mt-2">{agreement ? "Valid WUL Document" : "Document Not Found"}</CardTitle>
+            <CardTitle className="mt-2">{agreement ? "Valid Contract Agreement" : "Document Not Found"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-center text-sm">
             {agreement ? (
               <>
                 <p className="text-muted-foreground">This QR code corresponds to a genuine, system-issued rental agreement.</p>
                 <div className="rounded-md border p-4 text-left">
-                  <Row label="WUL Number" value={agreement.wulNumber ?? "-"} />
+                  <Row label="Contract Number" value={agreement.wulNumber ?? "-"} />
                   <Row label="Agreement Number" value={agreement.agreementNumber} />
                   <Row label="Sub-city" value={agreement.property.subCity.name} />
                   <Row label="Issued" value={agreement.wulIssuedAt?.toDateString() ?? "-"} />

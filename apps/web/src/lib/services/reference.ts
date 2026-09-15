@@ -15,8 +15,8 @@ export function generateAgreementNumber(subCityId: number) {
   return `TE/${pad(subCityId, 2)}/${randomDigits(6)}`;
 }
 
-export function generateWulNumber(subCityId: number) {
-  return `WUL/${pad(subCityId, 2)}/${randomDigits(6)}`;
+export function generateContractNumber(subCityId: number) {
+  return `CA/${pad(subCityId, 2)}/${randomDigits(6)}`;
 }
 
 export function generatePropertyCode(subCityId: number, houseNumber: string) {

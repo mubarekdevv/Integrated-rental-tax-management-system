@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import type { PaymentPurpose } from "@/generated/prisma/enums";
 
 export async function getOwnerDashboard(userId: string) {
   const ownerProfile = await prisma.ownerProfile.findUnique({ where: { userId } });
@@ -116,6 +117,37 @@ export async function getTaxOfficerDashboard() {
   );
 
   return { activeAgreementsWithoutAssessment, assessments, penalties, totals };
+}
+
+const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "short", year: "2-digit" });
+
+/** Last 6 calendar months of COMPLETED payment totals, oldest first. */
+export async function getMonthlyRevenueTrend(purpose?: PaymentPurpose, months = 6) {
+  const start = new Date();
+  start.setMonth(start.getMonth() - (months - 1));
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+
+  const payments = await prisma.payment.findMany({
+    where: { status: "COMPLETED", purpose, completedAt: { gte: start } },
+    select: { amountEtb: true, completedAt: true },
+  });
+
+  const buckets = new Map<string, number>();
+  for (let i = 0; i < months; i++) {
+    const d = new Date(start);
+    d.setMonth(d.getMonth() + i);
+    buckets.set(MONTH_FORMATTER.format(d), 0);
+  }
+  for (const p of payments) {
+    if (!p.completedAt) continue;
+    const key = MONTH_FORMATTER.format(p.completedAt);
+    if (buckets.has(key)) {
+      buckets.set(key, (buckets.get(key) ?? 0) + Number(p.amountEtb));
+    }
+  }
+
+  return Array.from(buckets.entries()).map(([month, amount]) => ({ month, amount }));
 }
 
 export async function getAdminDashboard() {

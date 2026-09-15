@@ -13,7 +13,7 @@ Digital House Rental and Tax Management System.
 - **Tailwind CSS v4** + **shadcn/ui** (Base UI primitives)
 - **Zod** + **React Hook Form** (`useActionState`) for validated forms
 - **Recharts** for the admin dashboard chart
-- **qrcode** for WUL QR generation, verified at `/verify/[token]`
+- **qrcode** for contract-agreement QR generation, verified at `/verify/[token]`
 - **next-intl** for English / Amharic / Afaan Oromoo UI text
 
 ## Architecture
@@ -92,9 +92,9 @@ All seeded accounts share the password `Passw0rd!1`:
 | Super Admin | `admin@rhtms.et` | Users, tax/penalty/price rules, audit log |
 | Housing Officer | `housing.officer@rhtms.et` | Property & agreement review queue |
 | Tax Officer | `tax.officer@rhtms.et` | Tax assessments, penalties |
-| Property Owner | `owner1@rhtms.et` | Has an active agreement + WUL, plus a property mid-review |
+| Property Owner | `owner1@rhtms.et` | Has an active agreement + issued contract, plus a property mid-review |
 | Property Owner | `owner2@rhtms.et` | Property sitting in the housing review queue |
-| Tenant | `tenant1@rhtms.et` | Active agreement, issued WUL |
+| Tenant | `tenant1@rhtms.et` | Active agreement, issued contract |
 | Tenant | `tenant2@rhtms.et` | No agreement yet — good for the search/registration demo |
 
 ## Checks
@@ -105,7 +105,7 @@ npm run lint              # eslint
 npm run build              # production build
 npm run verify:workflow  # end-to-end lifecycle check against the real DB:
                           # property -> review -> agreement -> service fee
-                          # payment -> WUL/QR -> tax assessment -> tax
+                          # payment -> contract agreement/QR -> tax assessment -> tax
                           # payment -> price change history -> penalty ->
                           # termination -> audit trail
 ```
@@ -114,7 +114,7 @@ npm run verify:workflow  # end-to-end lifecycle check against the real DB:
 
 Auth + RBAC, property registration/review, tenant registration (self and
 owner-initiated), rental agreements with price-range validation, service
-fee + tax payment via a mock multi-provider abstraction, WUL generation
+fee + tax payment via a mock multi-provider abstraction, contract agreement generation
 with QR verification, tax assessment against a configurable rate, penalty
 recording/review, agreement price-change and renewal history, termination
 workflow, notifications, a full audit trail, role-specific dashboards, an

@@ -85,11 +85,15 @@ function DropdownMenuItem({
   className,
   inset,
   variant = "default",
+  asChild = false,
+  children,
   ...props
 }: MenuPrimitive.Item.Props & {
   inset?: boolean
   variant?: "default" | "destructive"
+  asChild?: boolean
 }) {
+  const render = asChild && React.isValidElement(children) ? children : props.render
   return (
     <MenuPrimitive.Item
       data-slot="dropdown-menu-item"
@@ -100,7 +104,10 @@ function DropdownMenuItem({
         className
       )}
       {...props}
-    />
+      render={render}
+    >
+      {asChild ? undefined : children}
+    </MenuPrimitive.Item>
   )
 }
 

@@ -37,7 +37,7 @@ export const PERMISSIONS = {
 
 export type Permission = keyof typeof PERMISSIONS;
 
-const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   PROPERTY_OWNER: [
     "PROPERTY_CREATE",
     "PROPERTY_EDIT_OWN",

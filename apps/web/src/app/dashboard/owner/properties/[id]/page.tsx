@@ -1,28 +1,43 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PageHeader } from "@/components/shared/page-header";
 import { SubmitPropertyButton } from "@/components/property/submit-property-button";
 
 export default async function OwnerPropertyDetailPage({ params }: PageProps<"/dashboard/owner/properties/[id]">) {
   const { id } = await params;
+  const session = await auth();
   const property = await prisma.property.findUnique({
     where: { id },
-    include: { subCity: true, woreda: true, documents: true, reviews: { orderBy: { createdAt: "desc" }, include: { reviewer: true } } },
+    include: {
+      subCity: true,
+      woreda: true,
+      documents: true,
+      ownerships: { include: { ownerProfile: true } },
+      reviews: { orderBy: { createdAt: "desc" }, include: { reviewer: true } },
+    },
   });
   if (!property) notFound();
 
+  const isOwner = property.ownerships.some(
+    (o) => o.isPrimaryContact && o.ownerProfile.userId === session!.user.id
+  );
+  if (!isOwner) notFound();
+
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{property.title}</h1>
-          <p className="font-mono text-xs text-muted-foreground">{property.code}</p>
-        </div>
-        <StatusBadge status={property.status} />
-      </div>
+      <PageHeader
+        title={property.title}
+        breadcrumbs={[
+          { label: "My Properties", href: "/dashboard/owner/properties" },
+          { label: property.code },
+        ]}
+        actions={<StatusBadge status={property.status} />}
+      />
 
       <Card>
         <CardHeader>
@@ -43,6 +58,23 @@ export default async function OwnerPropertyDetailPage({ params }: PageProps<"/da
               <p>{property.description}</p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ownership</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {property.ownerships.map((o) => (
+            <div key={o.id} className="flex items-center justify-between rounded-md border p-2">
+              <span>
+                {o.ownershipType.replaceAll("_", " ")}
+                {o.sharePercentage ? ` — ${Number(o.sharePercentage)}%` : ""}
+              </span>
+              {o.isPrimaryContact && <span className="text-xs text-muted-foreground">Primary contact</span>}
+            </div>
+          ))}
         </CardContent>
       </Card>
 
@@ -73,7 +105,7 @@ export default async function OwnerPropertyDetailPage({ params }: PageProps<"/da
         </CardContent>
       </Card>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {(property.status === "DRAFT" || property.status === "CORRECTION_REQUIRED") && (
           <SubmitPropertyButton propertyId={property.id} />
         )}

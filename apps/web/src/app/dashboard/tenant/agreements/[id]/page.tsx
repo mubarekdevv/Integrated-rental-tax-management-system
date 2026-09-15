@@ -8,10 +8,11 @@ export default async function TenantAgreementDetailPage({ params }: PageProps<"/
   const session = await auth();
   const agreement = await getAgreementDetail(id);
   if (!agreement) notFound();
+  if (agreement.tenant.userId !== session!.user.id) notFound();
 
   return (
     <div className="mx-auto max-w-3xl">
-      <AgreementDetailView agreement={agreement} viewerRole={session!.user.role} />
+      <AgreementDetailView agreement={agreement} viewerRole={session!.user.role} viewerUserId={session!.user.id} />
     </div>
   );
 }

@@ -1,22 +1,27 @@
 import Link from "next/link";
 import { Home, FileText, LogOut, ShieldAlert } from "lucide-react";
+import { prisma } from "@/lib/db/prisma";
 import { getHousingOfficerDashboard } from "@/lib/services/dashboard.service";
 import { StatCard } from "@/components/shared/stat-card";
+import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/status-badge";
 
 export default async function HousingDashboardPage() {
-  const { pendingProperties, pendingAgreements, terminationRequests, recentReviews } = await getHousingOfficerDashboard();
+  const [{ pendingProperties, pendingAgreements, terminationRequests }, correctionCount] = await Promise.all([
+    getHousingOfficerDashboard(),
+    prisma.property.count({ where: { status: "CORRECTION_REQUIRED" } }),
+  ]);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Housing Officer Dashboard</h1>
+      <PageHeader title="Housing Officer Dashboard" description="Your review queue and recent activity." />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Properties to Review" value={pendingProperties.length} icon={Home} />
         <StatCard label="Agreements to Review" value={pendingAgreements.length} icon={FileText} />
         <StatCard label="Termination Requests" value={terminationRequests.length} icon={LogOut} />
-        <StatCard label="Recent Reviews" value={recentReviews.length} icon={ShieldAlert} />
+        <StatCard label="Correction Requests" value={correctionCount} icon={ShieldAlert} />
       </div>
 
       <Card>

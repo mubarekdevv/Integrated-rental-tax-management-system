@@ -9,9 +9,14 @@ export default async function OwnerAgreementDetailPage({ params }: PageProps<"/d
   const agreement = await getAgreementDetail(id);
   if (!agreement) notFound();
 
+  const isOwner = agreement.property.ownerships?.some(
+    (o) => o.isPrimaryContact && o.ownerProfile.userId === session!.user.id
+  );
+  if (!isOwner) notFound();
+
   return (
     <div className="mx-auto max-w-3xl">
-      <AgreementDetailView agreement={agreement} viewerRole={session!.user.role} />
+      <AgreementDetailView agreement={agreement} viewerRole={session!.user.role} viewerUserId={session!.user.id} />
     </div>
   );
 }

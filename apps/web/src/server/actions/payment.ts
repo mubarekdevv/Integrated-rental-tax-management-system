@@ -34,6 +34,7 @@ export async function initiatePaymentAction(
       providerType: parsed.data.providerType,
       amountEtb: input.amountEtb,
       payerId: user.id,
+      payerRole: user.role,
       payerPhone: parsed.data.payerPhone,
       agreementId: input.agreementId,
       taxAssessmentId: input.taxAssessmentId,
@@ -45,7 +46,10 @@ export async function initiatePaymentAction(
 
   revalidatePath("/dashboard/owner/agreements");
   revalidatePath("/dashboard/owner/tax");
+  revalidatePath("/dashboard/owner/penalties");
   revalidatePath("/dashboard/housing/agreements");
+  revalidatePath("/dashboard/housing/penalties");
+  revalidatePath("/dashboard/tax/penalties");
   revalidatePath("/dashboard/tenant/agreements");
   return {};
 }

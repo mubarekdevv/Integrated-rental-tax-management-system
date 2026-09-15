@@ -448,6 +448,8 @@ model RentalAgreement {
 
   serviceFeeAmountEtb Decimal @default(0) @db.Decimal(12, 2)
 
+  // "WUL" (from Amharic ውል, "contract") is the internal field name inherited
+  // from the reference system; the UI displays this as "Contract Agreement".
   wulNumber   String?   @unique
   wulIssuedAt DateTime?
   wulQrToken  String?   @unique

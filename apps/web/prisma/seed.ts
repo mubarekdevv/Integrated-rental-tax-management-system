@@ -109,21 +109,61 @@ async function main() {
     });
   }
 
+  // Penalty amounts follow Addis Ababa City Administration Directive No.
+  // 184/2025 (Residential Rent Control and Management Directive), Article
+  // 22 — expressed here as a percentage of one month's registered rent
+  // (e.g. "2 months' rent" = 200%). See docs/ASSUMPTIONS.md.
   const penaltyRuleDefs = [
     {
-      name: "Delayed property registration",
+      name: "Late registration — within 3 months (Art. 22.1)",
       reasonCode: "DELAYED_REGISTRATION" as const,
-      calculationType: "PER_DAY_LATE" as const,
-      perDayAmountEtb: 50,
+      calculationType: "PERCENTAGE_OF_RENT" as const,
+      percentage: 100,
     },
     {
-      name: "Non-compliance with registration requirements",
+      name: "Late registration — over 3 months (Art. 22.2)",
+      reasonCode: "DELAYED_REGISTRATION" as const,
+      calculationType: "PERCENTAGE_OF_RENT" as const,
+      percentage: 200,
+    },
+    {
+      name: "Unregistered agreement found by inspection (Art. 22.3)",
+      reasonCode: "DELAYED_REGISTRATION" as const,
+      calculationType: "PERCENTAGE_OF_RENT" as const,
+      percentage: 300,
+    },
+    {
+      name: "Renewal not registered (Art. 22.4)",
+      reasonCode: "DELAYED_REGISTRATION" as const,
+      calculationType: "PERCENTAGE_OF_RENT" as const,
+      percentage: 100,
+    },
+    {
+      name: "Illegal rent increase, early eviction or forced advance payment (Art. 22.5)",
       reasonCode: "NON_COMPLIANCE" as const,
-      calculationType: "FIXED" as const,
-      fixedAmountEtb: 2000,
+      calculationType: "PERCENTAGE_OF_RENT" as const,
+      percentage: 100,
     },
     {
-      name: "Late tax payment",
+      name: "Termination without required notice (Art. 22.6)",
+      reasonCode: "NON_COMPLIANCE" as const,
+      calculationType: "PERCENTAGE_OF_RENT" as const,
+      percentage: 200,
+    },
+    {
+      name: "Rent not paid via bank/electronic means, per payment (Art. 22.7)",
+      reasonCode: "NON_COMPLIANCE" as const,
+      calculationType: "PERCENTAGE_OF_RENT" as const,
+      percentage: 10,
+    },
+    {
+      name: "False information to misuse owner incentive (Art. 22.10)",
+      reasonCode: "NON_COMPLIANCE" as const,
+      calculationType: "PERCENTAGE_OF_RENT" as const,
+      percentage: 300,
+    },
+    {
+      name: "Late tax payment (sample — configurable)",
       reasonCode: "LATE_TAX_PAYMENT" as const,
       calculationType: "PERCENTAGE_OF_RENT" as const,
       percentage: 5,
@@ -267,7 +307,7 @@ async function main() {
         furnishedStatus: "UNFURNISHED",
         status: "ACTIVE",
         serviceFeeAmountEtb: 360,
-        wulNumber: "WUL/04/900001",
+        wulNumber: "CA/04/900001",
         wulQrToken: "demo-wul-token-0001",
         wulIssuedAt: new Date("2025-09-02"),
         createdById: owner1.id,
@@ -341,7 +381,7 @@ async function main() {
         userId: tenant1.id,
         type: "APPROVAL",
         title: "Rental agreement approved",
-        message: `Your agreement ${agreement1.agreementNumber} has been approved and your WUL is ready.`,
+        message: `Your agreement ${agreement1.agreementNumber} has been approved and your contract agreement is ready.`,
         agreementId: agreement1.id,
       },
     });
@@ -412,7 +452,7 @@ async function main() {
   console.log("  Tax Officer      tax.officer@rhtms.et");
   console.log("  Property Owner   owner1@rhtms.et (has an active agreement + a submitted property)");
   console.log("  Property Owner   owner2@rhtms.et (property awaiting housing review)");
-  console.log("  Tenant           tenant1@rhtms.et (active agreement + WUL)");
+  console.log("  Tenant           tenant1@rhtms.et (active agreement + contract)");
   console.log("  Tenant           tenant2@rhtms.et (no agreement yet, can browse & search)");
 }
 

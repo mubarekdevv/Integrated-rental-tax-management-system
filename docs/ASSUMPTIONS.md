@@ -7,14 +7,33 @@ documented in the source interview/screenshots, we made a reasonable,
 asserted as legally authoritative — an authorized administrator can change
 every numeric rule through the admin console without a code change.
 
+## Legal sources used
+
+Two authoritative sources informed the rules below:
+
+- **Addis Ababa City Administration Housing Development and Management
+  Bureau, Directive No. 184/2025** — "Residential Rent Control and
+  Management Directive," issued under the Housing Rent Control and
+  Management Proclamation No. 1320/2016. This is the source for the
+  registration workflow, the model rental agreement fields, and the
+  administrative penalty amounts in Article 22.
+- **Income Tax (Amendment) Proclamation No. 1395/2025** — referenced as the
+  basis the Addis Ababa City Administration Justice Bureau uses for rental
+  income tax. We were not given the specific statutory rate text, so the
+  rate remains a configurable `TaxRule` (seeded at 11.5%, matching the
+  figure from the original project interview) — an administrator should
+  update it to the exact rate in Proclamation 1395/2025 before this is used
+  for anything beyond a demo.
+
 ## Tax
 
-- **Rate**: 11.5% rental income tax, stored as a `TaxRule` row
-  (`isActive: true`), not a constant in code. `getActiveTaxRule()` in
-  `src/lib/services/config.ts` always reads the currently active rule.
-  Admins create a new rate via **Admin → Tax Rules**, which deactivates the
-  old rule (preserving it for historical assessments) and activates the new
-  one from that moment forward.
+- **Rate**: 11.5% rental income tax (interview figure; verify against
+  Proclamation No. 1395/2025), stored as a `TaxRule` row (`isActive: true`),
+  not a constant in code. `getActiveTaxRule()` in `src/lib/services/config.ts`
+  always reads the currently active rule. Admins create a new rate via
+  **Admin → Tax Rules**, which deactivates the old rule (preserving it for
+  historical assessments) and activates the new one from that moment
+  forward.
 - **Taxable amount**: the agreement's `rentalAmountEtb` is treated as a
   **monthly** figure; the taxable amount for an assessment period is
   `monthlyRent × number of calendar months in the period`. This is an
@@ -44,10 +63,32 @@ every numeric rule through the admin console without a code change.
 
 ## Penalties
 
-- Three sample `PenaltyRule` types are seeded: delayed registration
-  (per-day-late), non-compliance (fixed amount), and late tax payment
-  (percentage of rent). These are a starting framework, not an exhaustive
-  codification of every penalty in Ethiopian housing/tax law.
+- Seeded `PenaltyRule` amounts follow **Directive No. 184/2025, Article 22**
+  directly, expressed as a percentage of one month's registered rent (e.g.
+  "two months' rent" is modeled as 200% via `PERCENTAGE_OF_RENT`):
+  - Late registration within 3 months of the deadline: 1 month's rent (Art.
+    22.1)
+  - Late registration beyond 3 months: 2 months' rent (Art. 22.2)
+  - Unregistered agreement found by office inspection after 3+ months: 3
+    months' rent (Art. 22.3)
+  - Failure to register a renewal: 1 month's rent (Art. 22.4)
+  - Illegal rent increase, early eviction, or forced advance payment by the
+    lessor: 1 month's rent (Art. 22.5)
+  - Termination without the required notice period: 2 months' rent (Art.
+    22.6)
+  - Rent not paid via bank/electronic means: 10% of the monthly rent, per
+    late payment (Art. 22.7)
+  - False information to misuse an owner incentive: 3 months' rent (Art.
+    22.10)
+  - Late tax payment: 5% of rent — this one is **not** in the directive; it
+    is a reasonable, clearly-configurable placeholder pending a specific tax
+    penalty rule.
+- **Not implemented**: Article 22.8's escalating property-tax surcharge
+  (5%/10%/15%/20%/25%) for a residential unit left vacant/unrented for
+  1–5+ years. This needs a "vacancy duration" concept the current schema
+  does not track automatically (it would require monitoring how long a
+  property sits `APPROVED` with no agreement). Documented here as a known
+  gap rather than half-implemented.
 - Calculation types (`FIXED`, `PERCENTAGE_OF_RENT`, `PER_DAY_LATE`) are
   generic enough that an admin can model additional penalty categories by
   adding new `PenaltyRule` rows — no schema change needed for new amounts.
@@ -78,11 +119,21 @@ every numeric rule through the admin console without a code change.
   real integration can replace the mock without touching the rest of the
   application. No real financial transaction ever occurs in this prototype.
 
+## Payment Method
+
+- Directive No. 184/2025, Article 21(8) requires rent to be paid through a
+  bank or other legal electronic means; Article 22(7) penalizes non-electronic
+  rent payment at 10% of monthly rent per instance (seeded as a
+  `PenaltyRule`, see above). The system still offers a `CASH` mock payment
+  provider for flexibility in a classroom demo; a real deployment enforcing
+  the directive strictly would remove it or route cash payments straight
+  into that penalty rule.
+
 ## Agreement Lifecycle
 
 - Housing officer **approval** and **activation** are treated as the same
   event: once a service fee is paid and the officer approves, the agreement
-  goes straight to `ACTIVE` and the WUL is issued — there is no separate
+  goes straight to `ACTIVE` and the contract agreement is issued — there is no separate
   "approved but not yet active" waiting state in this prototype.
 - Termination requires both an initiating party (owner or tenant) and
   housing officer approval, matching the brief's requirement that

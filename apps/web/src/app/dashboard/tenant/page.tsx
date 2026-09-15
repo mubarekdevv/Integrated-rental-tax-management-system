@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { FileText, Search, Receipt } from "lucide-react";
+import { FileText, Search, Receipt, QrCode } from "lucide-react";
 import { auth } from "@/lib/auth/auth";
 import { getTenantDashboard } from "@/lib/services/dashboard.service";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { StatCard } from "@/components/shared/stat-card";
+import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -30,27 +31,44 @@ export default async function TenantDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Welcome, {session!.user.firstName}</h1>
-          <p className="text-sm text-muted-foreground">Your rental agreements and housing search, all in one place.</p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/properties">
-            <Search className="size-4" /> Find a Home
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title={`Welcome, ${session!.user.firstName}`}
+        description="Your rental agreement and housing search, all in one place."
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/properties">
+              <Search className="size-4" /> Find a Home
+            </Link>
+          </Button>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Agreements" value={agreements.length} icon={FileText} />
         <StatCard
           label="Current Rent"
-          value={activeAgreement ? `${Number(activeAgreement.rentalAmountEtb).toLocaleString()} ETB` : "-"}
+          value={activeAgreement ? `${Number(activeAgreement.rentalAmountEtb).toLocaleString()} ETB / mo` : "-"}
           icon={Receipt}
         />
         <StatCard label="Status" value={activeAgreement?.status.replaceAll("_", " ") ?? "No active agreement"} icon={FileText} />
       </div>
+
+      {activeAgreement?.wulNumber && (
+        <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div className="flex items-center gap-3">
+              <QrCode className="size-8 text-emerald-700 dark:text-emerald-400" />
+              <div>
+                <p className="font-medium">Your contract agreement is issued and active</p>
+                <p className="font-mono text-xs text-muted-foreground">{activeAgreement.wulNumber}</p>
+              </div>
+            </div>
+            <Button asChild size="sm">
+              <Link href={`/agreements/${activeAgreement.id}/contract`}>View Contract</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

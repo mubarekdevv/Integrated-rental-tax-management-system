@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Receipt, Wallet, AlertTriangle, ShieldAlert } from "lucide-react";
 import { getTaxOfficerDashboard } from "@/lib/services/dashboard.service";
 import { StatCard } from "@/components/shared/stat-card";
+import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AssessTaxDialog } from "@/components/tax/assess-tax-dialog";
 
@@ -10,7 +11,7 @@ export default async function TaxDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Tax Officer Dashboard</h1>
+      <PageHeader title="Tax Officer Dashboard" description="Assessment queue, collection status and penalties." />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Tax Assessed" value={`${totals.assessed.toLocaleString()} ETB`} icon={Receipt} />

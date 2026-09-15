@@ -3,13 +3,63 @@ import { getPaymentProvider } from "@/lib/services/payment-providers";
 import { generatePaymentReference } from "@/lib/services/reference";
 import { writeAuditLog } from "@/lib/services/audit";
 import { createNotification } from "@/lib/services/notifications";
-import type { PaymentProviderType, PaymentPurpose } from "@/generated/prisma/enums";
+import { RecordAccessError } from "@/lib/auth/record-access";
+import type { PaymentProviderType, PaymentPurpose, UserRole } from "@/generated/prisma/enums";
+
+/**
+ * Record-level check: a payer may only pay their own service fee / tax
+ * (the property owner) or their own penalty (the responsible party).
+ * SUPER_ADMIN may record a payment on anyone's behalf.
+ */
+async function assertCanInitiatePayment(input: {
+  payerId: string;
+  payerRole: UserRole;
+  purpose: PaymentPurpose;
+  agreementId?: string;
+  taxAssessmentId?: string;
+  penaltyId?: string;
+}) {
+  if (input.payerRole === "SUPER_ADMIN") return;
+
+  if (input.purpose === "SERVICE_FEE" && input.agreementId) {
+    const agreement = await prisma.rentalAgreement.findUniqueOrThrow({
+      where: { id: input.agreementId },
+      include: { property: { include: { ownerships: { include: { ownerProfile: true } } } } },
+    });
+    const isOwner = agreement.property.ownerships.some(
+      (o) => o.isPrimaryContact && o.ownerProfile.userId === input.payerId
+    );
+    if (!isOwner) throw new RecordAccessError("Only the property owner can pay this service fee.");
+  }
+
+  if (input.purpose === "TAX" && input.taxAssessmentId) {
+    const assessment = await prisma.taxAssessment.findUniqueOrThrow({
+      where: { id: input.taxAssessmentId },
+      include: { agreement: { include: { property: { include: { ownerships: { include: { ownerProfile: true } } } } } } },
+    });
+    const isOwner = assessment.agreement.property.ownerships.some(
+      (o) => o.isPrimaryContact && o.ownerProfile.userId === input.payerId
+    );
+    if (!isOwner) throw new RecordAccessError("Only the property owner can pay this tax assessment.");
+  }
+
+  if (input.purpose === "PENALTY" && input.penaltyId) {
+    const penalty = await prisma.penalty.findUniqueOrThrow({ where: { id: input.penaltyId } });
+    if (penalty.responsiblePartyId !== input.payerId) {
+      throw new RecordAccessError("Only the responsible party can pay this penalty.");
+    }
+    if (penalty.status !== "APPROVED") {
+      throw new Error("This penalty must be approved before it can be paid.");
+    }
+  }
+}
 
 export interface InitiatePaymentInput {
   purpose: PaymentPurpose;
   providerType: PaymentProviderType;
   amountEtb: number;
   payerId: string;
+  payerRole: UserRole;
   payerPhone: string;
   agreementId?: string;
   taxAssessmentId?: string;
@@ -23,6 +73,8 @@ export interface InitiatePaymentInput {
  * intentionally the same either way.
  */
 export async function initiatePayment(input: InitiatePaymentInput) {
+  await assertCanInitiatePayment(input);
+
   const provider = getPaymentProvider(input.providerType);
   const referenceNumber = generatePaymentReference(input.purpose);
 

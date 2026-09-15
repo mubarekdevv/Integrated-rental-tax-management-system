@@ -24,9 +24,15 @@ function calculateAmount(
     case "FIXED":
       return Number(rule.fixedAmountEtb ?? 0);
     case "PERCENTAGE_OF_RENT":
-      return Math.round(Number(baseAmountEtb ?? 0) * (Number(rule.percentage ?? 0) / 100) * 100) / 100;
+      if (!baseAmountEtb) {
+        throw new Error("This penalty rule is percentage-of-rent based; the agreement's rental amount is required.");
+      }
+      return Math.round(baseAmountEtb * (Number(rule.percentage ?? 0) / 100) * 100) / 100;
     case "PER_DAY_LATE":
-      return Number(rule.perDayAmountEtb ?? 0) * (delayDays ?? 0);
+      if (!delayDays) {
+        throw new Error("This penalty rule is per-day-late based; the number of delay days is required.");
+      }
+      return Number(rule.perDayAmountEtb ?? 0) * delayDays;
     default:
       return 0;
   }
