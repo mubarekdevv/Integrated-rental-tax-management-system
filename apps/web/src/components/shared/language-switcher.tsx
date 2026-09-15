@@ -34,7 +34,7 @@ export function LanguageSwitcher() {
         {Object.entries(LOCALE_LABELS).map(([value, label]) => (
           <DropdownMenuItem
             key={value}
-            onSelect={() => startTransition(() => setLocaleAction(value))}
+            onClick={() => startTransition(() => setLocaleAction(value))}
           >
             {label}
           </DropdownMenuItem>
