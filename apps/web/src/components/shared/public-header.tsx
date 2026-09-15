@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import { DASHBOARD_PATH_BY_ROLE } from "@/lib/auth/permissions";
 
@@ -19,22 +19,25 @@ export async function PublicHeader() {
           <span className="hidden sm:inline">{tApp("name")}</span>
         </Link>
         <nav className="flex items-center gap-1.5 sm:gap-2">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/properties">{t("findAHome")}</Link>
-          </Button>
+          <Link href="/properties" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+            {t("findAHome")}
+          </Link>
           <LanguageSwitcher />
           {session?.user ? (
-            <Button asChild size="sm">
-              <Link href={DASHBOARD_PATH_BY_ROLE[session.user.role] as never}>{t("dashboard")}</Link>
-            </Button>
+            <Link
+              href={DASHBOARD_PATH_BY_ROLE[session.user.role] as never}
+              className={buttonVariants({ size: "sm" })}
+            >
+              {t("dashboard")}
+            </Link>
           ) : (
             <>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/login">{t("login")}</Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href="/register">{t("register")}</Link>
-              </Button>
+              <Link href="/login" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                {t("login")}
+              </Link>
+              <Link href="/register" className={buttonVariants({ size: "sm" })}>
+                {t("register")}
+              </Link>
             </>
           )}
         </nav>
