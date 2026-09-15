@@ -12,7 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "verify:workflow": "tsx scripts/verify-workflow.ts"
+    "verify:workflow": "tsx scripts/verify-workflow.ts",
+    "verify:i18n": "tsx scripts/verify-i18n.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
