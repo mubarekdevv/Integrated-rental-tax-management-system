@@ -1,0 +1,730 @@
+// Integrated Digital House Rental and Tax Management System
+// Domain model. See docs/ASSUMPTIONS.md for legal/business-rule assumptions.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  PROPERTY_OWNER
+  TENANT
+  HOUSING_OFFICER
+  TAX_OFFICER
+  SUPER_ADMIN
+}
+
+enum IdType {
+  FAYDA
+  KEBELE_ID
+  PASSPORT
+  DRIVER_LICENSE
+  STUDENT_ID
+  OTHER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum StaffDepartment {
+  HOUSING
+  TAX
+  ADMIN
+}
+
+// Shared lifecycle status for Property registrations and Rental Agreements.
+enum ApprovalStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  CORRECTION_REQUIRED
+  APPROVED
+  REJECTED
+  ACTIVE
+  TERMINATED
+}
+
+enum PropertyType {
+  APARTMENT
+  CONDOMINIUM
+  SHARED_HOUSE
+  VILLA
+  COMMERCIAL
+  OTHER
+}
+
+enum ConstructionType {
+  CONCRETE
+  HOLLOW_BLOCK
+  WOOD_AND_MUD
+  PREFAB
+  OTHER
+}
+
+enum FurnishedStatus {
+  FURNISHED
+  UNFURNISHED
+  SEMI_FURNISHED
+}
+
+enum OwnershipType {
+  ORIGINAL_OWNER
+  HEIR
+  DELEGATED_REPRESENTATIVE
+}
+
+enum PropertyDocumentType {
+  KARTA
+  OWNERSHIP_CERTIFICATE
+  DELEGATION_LETTER
+  HEIR_CERTIFICATE
+  ID_COPY
+  OTHER
+}
+
+enum ReviewAction {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CORRECTION_REQUESTED
+}
+
+enum PaymentFrequency {
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+}
+
+enum AgreementChangeType {
+  CREATED
+  RENEWED
+  PRICE_UPDATED
+  TERMS_UPDATED
+  TERMINATED
+}
+
+enum PaymentPurpose {
+  SERVICE_FEE
+  TAX
+  PENALTY
+  RENT
+}
+
+enum PaymentProviderType {
+  CBE
+  TELEBIRR
+  BANK_TRANSFER
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  INITIATED
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum TaxAssessmentStatus {
+  PENDING
+  ASSESSED
+  PAID
+  OVERDUE
+  WAIVED
+  DISPUTED
+}
+
+enum PenaltyReasonCode {
+  DELAYED_REGISTRATION
+  NON_COMPLIANCE
+  LATE_TAX_PAYMENT
+  OTHER
+}
+
+enum PenaltyCalculationType {
+  FIXED
+  PERCENTAGE_OF_RENT
+  PER_DAY_LATE
+}
+
+enum PenaltyStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  WAIVED
+  PAID
+  DISPUTED
+}
+
+enum NotificationType {
+  APPROVAL
+  REJECTION
+  CORRECTION_REQUIRED
+  AGREEMENT_EXPIRY
+  PAYMENT_DUE
+  TAX_DUE
+  PENALTY
+  RENEWAL
+  TERMINATION
+  SYSTEM
+}
+
+// ---------------------------------------------------------------------------
+// REFERENCE / LOOKUP DATA
+// ---------------------------------------------------------------------------
+
+model SubCity {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  nameAm    String?
+  nameOm    String?
+  createdAt DateTime @default(now())
+
+  woredas    Woreda[]
+  properties Property[]
+  priceRules RentalPriceRule[]
+  staff      StaffProfile[]
+}
+
+model Woreda {
+  id        Int      @id @default(autoincrement())
+  subCityId Int
+  subCity   SubCity  @relation(fields: [subCityId], references: [id])
+  number    String
+  createdAt DateTime @default(now())
+
+  properties Property[]
+
+  @@unique([subCityId, number])
+}
+
+// ---------------------------------------------------------------------------
+// IDENTITY / USERS
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  phone        String    @unique
+  passwordHash String
+  role         UserRole
+  firstName    String
+  middleName   String?
+  lastName     String
+  locale       String    @default("en")
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  ownerProfile  OwnerProfile?
+  tenantProfile TenantProfile?
+  staffProfile  StaffProfile?
+
+  notifications Notification[]
+
+  createdProperties        Property[]            @relation("PropertyCreatedBy")
+  approvedProperties       Property[]            @relation("PropertyApprovedBy")
+  uploadedDocuments        PropertyDocument[]
+  propertyReviewsGiven     PropertyReview[]      @relation("ReviewerUser")
+  agreementReviewsGiven    AgreementReview[]     @relation("AgreementReviewerUser")
+  createdAgreements        RentalAgreement[]     @relation("AgreementCreatedBy")
+  approvedAgreements       RentalAgreement[]     @relation("AgreementApprovedBy")
+  terminationRequests      RentalAgreement[]     @relation("AgreementTerminationRequestedBy")
+  agreementVersionsChanged AgreementVersion[]    @relation("AgreementVersionChangedBy")
+  paymentsMade             Payment[]             @relation("PaymentPayer")
+  taxAssessmentsHandled    TaxAssessment[]       @relation("TaxAssessedBy")
+  penaltiesResponsible     Penalty[]             @relation("PenaltyResponsibleParty")
+  penaltiesReviewed        Penalty[]             @relation("PenaltyReviewedBy")
+  penaltiesApproved        Penalty[]             @relation("PenaltyApprovedBy")
+  penaltiesCreated         Penalty[]             @relation("PenaltyCreatedBy")
+  auditLogs                AuditLog[]
+  rentalPriceRulesCreated  RentalPriceRule[]     @relation("PriceRuleCreatedBy")
+  taxRulesCreated          TaxRule[]             @relation("TaxRuleCreatedBy")
+  penaltyRulesCreated      PenaltyRule[]         @relation("PenaltyRuleCreatedBy")
+  systemConfigsUpdated     SystemConfiguration[] @relation("ConfigUpdatedBy")
+  verifiedOwnerProfiles    OwnerProfile[]        @relation("OwnerVerifiedBy")
+  verifiedTenantProfiles   TenantProfile[]       @relation("TenantVerifiedBy")
+
+  @@index([role])
+}
+
+model OwnerProfile {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idType       IdType
+  idNumber     String
+  gender       Gender?
+  subCity      String?
+  woreda       String?
+  city         String    @default("Addis Ababa")
+  isVerified   Boolean   @default(false)
+  verifiedAt   DateTime?
+  verifiedById String?
+  verifiedBy   User?     @relation("OwnerVerifiedBy", fields: [verifiedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  ownerships Ownership[]
+
+  @@unique([idType, idNumber])
+}
+
+model TenantProfile {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idType       IdType
+  idNumber     String
+  gender       Gender?
+  motherName   String?
+  subCity      String?
+  woreda       String?
+  city         String    @default("Addis Ababa")
+  isVerified   Boolean   @default(false)
+  verifiedAt   DateTime?
+  verifiedById String?
+  verifiedBy   User?     @relation("TenantVerifiedBy", fields: [verifiedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  agreements RentalAgreement[]
+
+  @@unique([idType, idNumber])
+}
+
+// Housing/Tax/Admin staff. Housing & Tax officers are scoped to a sub-city queue.
+model StaffProfile {
+  id         String          @id @default(cuid())
+  userId     String          @unique
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department StaffDepartment
+  title      String?
+  employeeId String?         @unique
+  subCityId  Int?
+  subCity    SubCity?        @relation(fields: [subCityId], references: [id])
+  createdAt  DateTime        @default(now())
+
+  @@index([department])
+}
+
+// ---------------------------------------------------------------------------
+// PROPERTY
+// ---------------------------------------------------------------------------
+
+model Property {
+  id               String           @id @default(cuid())
+  code             String           @unique // e.g. house/kebele number based reference
+  title            String
+  description      String?
+  propertyType     PropertyType
+  constructionType ConstructionType
+  numberOfRooms    Int
+  furnishedStatus  FurnishedStatus
+  sizeSqm          Decimal?         @db.Decimal(10, 2)
+  subCityId        Int
+  subCity          SubCity          @relation(fields: [subCityId], references: [id])
+  woredaId         Int?
+  woreda           Woreda?          @relation(fields: [woredaId], references: [id])
+  city             String           @default("Addis Ababa")
+  houseNumber      String
+  askingRentEtb    Decimal          @db.Decimal(12, 2)
+  isListed         Boolean          @default(false)
+  status           ApprovalStatus   @default(DRAFT)
+  reviewComment    String?
+
+  createdById  String
+  createdBy    User      @relation("PropertyCreatedBy", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?     @relation("PropertyApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerships Ownership[]
+  documents  PropertyDocument[]
+  reviews    PropertyReview[]
+  agreements RentalAgreement[]
+  penalties  Penalty[]
+
+  @@index([status])
+  @@index([subCityId])
+  @@index([propertyType])
+  @@index([isListed])
+}
+
+// Supports original owners, multiple heirs (with share %) and delegated
+// representatives acting on behalf of another Ownership record.
+model Ownership {
+  id                    String            @id @default(cuid())
+  propertyId            String
+  property              Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerProfileId        String
+  ownerProfile          OwnerProfile      @relation(fields: [ownerProfileId], references: [id])
+  ownershipType         OwnershipType
+  sharePercentage       Decimal?          @db.Decimal(5, 2)
+  isPrimaryContact      Boolean           @default(false)
+  representsOwnershipId String?
+  representsOwnership   Ownership?        @relation("Delegation", fields: [representsOwnershipId], references: [id])
+  delegates             Ownership[]       @relation("Delegation")
+  documentId            String?
+  document              PropertyDocument? @relation(fields: [documentId], references: [id])
+  createdAt             DateTime          @default(now())
+
+  @@index([propertyId])
+  @@index([ownerProfileId])
+}
+
+model PropertyDocument {
+  id           String               @id @default(cuid())
+  propertyId   String
+  property     Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  documentType PropertyDocumentType
+  fileName     String
+  fileUrl      String
+  uploadedById String
+  uploadedBy   User                 @relation(fields: [uploadedById], references: [id])
+  verified     Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+
+  ownerships Ownership[]
+
+  @@index([propertyId])
+}
+
+// Unified review trail for both Property submissions and Agreement approvals.
+model PropertyReview {
+  id             String         @id @default(cuid())
+  propertyId     String
+  property       Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  reviewerId     String
+  reviewer       User           @relation("ReviewerUser", fields: [reviewerId], references: [id])
+  action         ReviewAction
+  comment        String?
+  previousStatus ApprovalStatus
+  newStatus      ApprovalStatus
+  createdAt      DateTime       @default(now())
+
+  @@index([propertyId])
+}
+
+// ---------------------------------------------------------------------------
+// RENTAL AGREEMENT / WUL
+// ---------------------------------------------------------------------------
+
+model RentalAgreement {
+  id              String        @id @default(cuid())
+  agreementNumber String        @unique
+  propertyId      String
+  property        Property      @relation(fields: [propertyId], references: [id])
+  tenantId        String
+  tenant          TenantProfile @relation(fields: [tenantId], references: [id])
+
+  startDate        DateTime
+  endDate          DateTime
+  rentalAmountEtb  Decimal          @db.Decimal(12, 2)
+  currency         String           @default("ETB")
+  paymentFrequency PaymentFrequency @default(MONTHLY)
+  furnishedStatus  FurnishedStatus
+  status           ApprovalStatus   @default(DRAFT)
+
+  priceFlagged       Boolean          @default(false)
+  priceFlagReason    String?
+  appliedPriceRuleId String?
+  appliedPriceRule   RentalPriceRule? @relation(fields: [appliedPriceRuleId], references: [id])
+
+  serviceFeeAmountEtb Decimal @default(0) @db.Decimal(12, 2)
+
+  wulNumber   String?   @unique
+  wulIssuedAt DateTime?
+  wulQrToken  String?   @unique
+
+  createdById  String
+  createdBy    User      @relation("AgreementCreatedBy", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?     @relation("AgreementApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  terminatedAt             DateTime?
+  terminationReason        String?
+  terminationRequestedById String?
+  terminationRequestedBy   User?     @relation("AgreementTerminationRequestedBy", fields: [terminationRequestedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions        AgreementVersion[]
+  reviews         AgreementReview[]
+  payments        Payment[]
+  taxAssessments  TaxAssessment[]
+  penalties       Penalty[]
+  notifications   Notification[]
+  priceRulesUsing RentalPriceRule[]  @relation("PriceRuleUsedByAgreement")
+
+  @@index([status])
+  @@index([propertyId])
+  @@index([tenantId])
+}
+
+// Approval/correction commentary trail for agreements, mirroring
+// PropertyReview. Kept separate from AgreementVersion, which records
+// material data changes (price/terms), not reviewer commentary.
+model AgreementReview {
+  id             String          @id @default(cuid())
+  agreementId    String
+  agreement      RentalAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  reviewerId     String
+  reviewer       User            @relation("AgreementReviewerUser", fields: [reviewerId], references: [id])
+  action         ReviewAction
+  comment        String?
+  previousStatus ApprovalStatus
+  newStatus      ApprovalStatus
+  createdAt      DateTime        @default(now())
+
+  @@index([agreementId])
+}
+
+// Immutable history of material changes to an agreement (renewal, price
+// change, term update, termination) so nothing is silently overwritten.
+model AgreementVersion {
+  id              String              @id @default(cuid())
+  agreementId     String
+  agreement       RentalAgreement     @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  versionNumber   Int
+  changeType      AgreementChangeType
+  rentalAmountEtb Decimal             @db.Decimal(12, 2)
+  startDate       DateTime
+  endDate         DateTime
+  status          ApprovalStatus
+  changeReason    String?
+  snapshot        Json
+  changedById     String
+  changedBy       User                @relation("AgreementVersionChangedBy", fields: [changedById], references: [id])
+  createdAt       DateTime            @default(now())
+
+  @@unique([agreementId, versionNumber])
+}
+
+// Configurable expected rental price ranges used to flag outlier contract
+// prices for review. Sample data only — not a legal price table.
+model RentalPriceRule {
+  id               String            @id @default(cuid())
+  label            String
+  subCityId        Int?
+  subCity          SubCity?          @relation(fields: [subCityId], references: [id])
+  propertyType     PropertyType?
+  constructionType ConstructionType?
+  minRooms         Int?
+  maxRooms         Int?
+  furnishedStatus  FurnishedStatus?
+  minPriceEtb      Decimal           @db.Decimal(12, 2)
+  maxPriceEtb      Decimal           @db.Decimal(12, 2)
+  isActive         Boolean           @default(true)
+  createdById      String
+  createdBy        User              @relation("PriceRuleCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime          @default(now())
+
+  agreementsApplied RentalAgreement[]
+  agreementsUsing   RentalAgreement[] @relation("PriceRuleUsedByAgreement")
+
+  @@index([subCityId])
+}
+
+// ---------------------------------------------------------------------------
+// PAYMENTS
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id              String              @id @default(cuid())
+  purpose         PaymentPurpose
+  providerType    PaymentProviderType
+  referenceNumber String              @unique
+  amountEtb       Decimal             @db.Decimal(12, 2)
+  status          PaymentStatus       @default(PENDING)
+
+  payerId String
+  payer   User   @relation("PaymentPayer", fields: [payerId], references: [id])
+
+  agreementId String?
+  agreement   RentalAgreement? @relation(fields: [agreementId], references: [id])
+
+  taxAssessmentId String?        @unique
+  taxAssessment   TaxAssessment? @relation(fields: [taxAssessmentId], references: [id])
+
+  penaltyId String?  @unique
+  penalty   Penalty? @relation(fields: [penaltyId], references: [id])
+
+  failureReason String?
+  initiatedAt   DateTime  @default(now())
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([purpose])
+}
+
+// ---------------------------------------------------------------------------
+// TAX
+// ---------------------------------------------------------------------------
+
+// Configurable tax rule. The default 11.5% rental income tax rate is loaded
+// as seed data, not hard-coded in application logic.
+model TaxRule {
+  id             String    @id @default(cuid())
+  name           String
+  ratePercentage Decimal   @db.Decimal(5, 2)
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  isActive       Boolean   @default(true)
+  createdById    String
+  createdBy      User      @relation("TaxRuleCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime  @default(now())
+
+  assessments TaxAssessment[]
+}
+
+model TaxAssessment {
+  id               String              @id @default(cuid())
+  agreementId      String
+  agreement        RentalAgreement     @relation(fields: [agreementId], references: [id])
+  taxRuleId        String
+  taxRule          TaxRule             @relation(fields: [taxRuleId], references: [id])
+  periodStart      DateTime
+  periodEnd        DateTime
+  taxableAmountEtb Decimal             @db.Decimal(12, 2)
+  rateApplied      Decimal             @db.Decimal(5, 2)
+  taxAmountEtb     Decimal             @db.Decimal(12, 2)
+  status           TaxAssessmentStatus @default(PENDING)
+  dueDate          DateTime
+  assessedById     String?
+  assessedBy       User?               @relation("TaxAssessedBy", fields: [assessedById], references: [id])
+  assessedAt       DateTime?
+  paidAt           DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  payment   Payment?
+  penalties Penalty[]
+
+  @@index([status])
+  @@index([agreementId])
+}
+
+// ---------------------------------------------------------------------------
+// PENALTIES / COMPLIANCE
+// ---------------------------------------------------------------------------
+
+model PenaltyRule {
+  id              String                 @id @default(cuid())
+  name            String
+  reasonCode      PenaltyReasonCode
+  calculationType PenaltyCalculationType
+  fixedAmountEtb  Decimal?               @db.Decimal(12, 2)
+  percentage      Decimal?               @db.Decimal(5, 2)
+  perDayAmountEtb Decimal?               @db.Decimal(12, 2)
+  isActive        Boolean                @default(true)
+  createdById     String
+  createdBy       User                   @relation("PenaltyRuleCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime               @default(now())
+
+  penalties Penalty[]
+}
+
+model Penalty {
+  id              String           @id @default(cuid())
+  penaltyRuleId   String
+  penaltyRule     PenaltyRule      @relation(fields: [penaltyRuleId], references: [id])
+  agreementId     String?
+  agreement       RentalAgreement? @relation(fields: [agreementId], references: [id])
+  propertyId      String?
+  property        Property?        @relation(fields: [propertyId], references: [id])
+  taxAssessmentId String?
+  taxAssessment   TaxAssessment?   @relation(fields: [taxAssessmentId], references: [id])
+
+  responsiblePartyId String
+  responsibleParty   User   @relation("PenaltyResponsibleParty", fields: [responsiblePartyId], references: [id])
+
+  reason              String
+  delayDays           Int?
+  calculatedAmountEtb Decimal       @db.Decimal(12, 2)
+  evidenceNote        String?
+  status              PenaltyStatus @default(PENDING)
+
+  reviewedById String?
+  reviewedBy   User?     @relation("PenaltyReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  approvedById String?
+  approvedBy   User?     @relation("PenaltyApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  createdById String
+  createdBy   User     @relation("PenaltyCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  payment Payment?
+
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// NOTIFICATIONS / AUDIT / CONFIG
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean          @default(false)
+  agreementId String?
+  agreement   RentalAgreement? @relation(fields: [agreementId], references: [id])
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, isRead])
+}
+
+// High-priority security requirement: immutable record of who did what to
+// which entity and when, including before/after values for sensitive edits.
+model AuditLog {
+  id                String   @id @default(cuid())
+  actorId           String?
+  actor             User?    @relation(fields: [actorId], references: [id])
+  action            String
+  entityType        String
+  entityId          String
+  previousValueJson Json?
+  newValueJson      Json?
+  ipAddress         String?
+  createdAt         DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model SystemConfiguration {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedById String?
+  updatedBy   User?    @relation("ConfigUpdatedBy", fields: [updatedById], references: [id])
+  updatedAt   DateTime @updatedAt
+}
