@@ -45,17 +45,17 @@ function main() {
   {
     const cases: [number, number][] = [
       [12000, 0], // bracket 1 (0%)
-      [30000, (30000 - 24001) * 0.15], // bracket 2 (15%) — only the slice above 24,000 is taxed
-      [60000, (48000 - 24001) * 0.15 + (60000 - 48001) * 0.2], // bracket 3 (20%)
-      [100000, (48000 - 24001) * 0.15 + (84000 - 48001) * 0.2 + (100000 - 84001) * 0.25], // bracket 4 (25%)
-      [150000, (48000 - 24001) * 0.15 + (84000 - 48001) * 0.2 + (120000 - 84001) * 0.25 + (150000 - 120001) * 0.3], // bracket 5 (30%)
+      [30000, (30000 - 24000) * 0.15], // bracket 2 (15%) — only the slice above 24,000 is taxed
+      [60000, (48000 - 24000) * 0.15 + (60000 - 48000) * 0.2], // bracket 3 (20%)
+      [100000, (48000 - 24000) * 0.15 + (84000 - 48000) * 0.2 + (100000 - 84000) * 0.25], // bracket 4 (25%)
+      [150000, (48000 - 24000) * 0.15 + (84000 - 48000) * 0.2 + (120000 - 84000) * 0.25 + (150000 - 120000) * 0.3], // bracket 5 (30%)
       [
         200000,
-        (48000 - 24001) * 0.15 +
-          (84000 - 48001) * 0.2 +
-          (120000 - 84001) * 0.25 +
-          (168000 - 120001) * 0.3 +
-          (200000 - 168001) * 0.35,
+        (48000 - 24000) * 0.15 +
+          (84000 - 48000) * 0.2 +
+          (120000 - 84000) * 0.25 +
+          (168000 - 120000) * 0.3 +
+          (200000 - 168000) * 0.35,
       ], // bracket 6 (35%, open-ended)
     ];
     for (const [income, expected] of cases) {
@@ -76,13 +76,13 @@ function main() {
 
     const atSecondBracketStart = calculateProgressiveTax(24001, BRACKETS);
     assert(
-      atSecondBracketStart.taxAmountEtb === 0,
-      `24,001 (first ETB of the 15% bracket) should owe a rounded 0, got ${atSecondBracketStart.taxAmountEtb}`
+      atSecondBracketStart.taxAmountEtb === 0.15,
+      `24,001 (first ETB above the zero-rate ceiling) should owe 0.15 ETB (1 ETB taxed at 15%), got ${atSecondBracketStart.taxAmountEtb}`
     );
 
     const atTopBracketStart = calculateProgressiveTax(168001, BRACKETS);
     const expectedAtTop =
-      Math.round(((48000 - 24001) * 0.15 + (84000 - 48001) * 0.2 + (120000 - 84001) * 0.25 + (168000 - 120001) * 0.3) * 100) / 100;
+      Math.round(((48000 - 24000) * 0.15 + (84000 - 48000) * 0.2 + (120000 - 84000) * 0.25 + (168000 - 120000) * 0.3 + 1 * 0.35) * 100) / 100;
     assert(
       atTopBracketStart.taxAmountEtb === expectedAtTop,
       `168,001 (first ETB of the open-ended 35% bracket) should owe ${expectedAtTop}, got ${atTopBracketStart.taxAmountEtb}`

@@ -49,20 +49,21 @@ export function calculateProgressiveTax(
 
   const sorted = [...brackets].sort((a, b) => a.sortOrder - b.sortOrder);
   let totalTax = 0;
+  let floor = 0; // upper edge of the previous bracket; the true start of this bracket's taxable slice
   const breakdown: TaxBracketBreakdownRow[] = [];
 
   for (const bracket of sorted) {
-    const min = bracket.minAmountEtb;
     const max = bracket.maxAmountEtb ?? Infinity;
-    if (taxableAmountEtb <= min) break;
+    if (taxableAmountEtb <= floor) break;
 
-    const amountInBracketEtb = Math.round((Math.min(taxableAmountEtb, max) - min) * 100) / 100;
+    const amountInBracketEtb = Math.round((Math.min(taxableAmountEtb, max) - floor) * 100) / 100;
+    floor = max;
     if (amountInBracketEtb <= 0) continue;
 
     const taxForBracketEtb = Math.round(amountInBracketEtb * (bracket.ratePercentage / 100) * 100) / 100;
     totalTax += taxForBracketEtb;
     breakdown.push({
-      minAmountEtb: min,
+      minAmountEtb: bracket.minAmountEtb,
       maxAmountEtb: bracket.maxAmountEtb,
       ratePercentage: bracket.ratePercentage,
       amountInBracketEtb,
