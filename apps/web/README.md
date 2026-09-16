@@ -103,6 +103,8 @@ All seeded accounts share the password `Passw0rd!1`:
 npm run typecheck        # tsc --noEmit
 npm run lint              # eslint
 npm run build              # production build
+npm run verify:i18n      # locale catalogs are valid + keys match across en/am/om
+npm run verify:tax       # progressive tax-bracket calculation, DB-free
 npm run verify:workflow  # end-to-end lifecycle check against the real DB:
                           # property -> review -> agreement -> service fee
                           # payment -> contract agreement/QR -> tax assessment -> tax
@@ -115,7 +117,8 @@ npm run verify:workflow  # end-to-end lifecycle check against the real DB:
 Auth + RBAC, property registration/review, tenant registration (self and
 owner-initiated), rental agreements with price-range validation, service
 fee + tax payment via a mock multi-provider abstraction, contract agreement generation
-with QR verification, tax assessment against a configurable rate, penalty
+with QR verification, tax assessment against a configurable, progressive
+rental-income tax bracket table (see `docs/ASSUMPTIONS.md`), penalty
 recording/review, agreement price-change and renewal history, termination
 workflow, notifications, a full audit trail, role-specific dashboards, an
 admin console for tax/penalty/price rules and system config, public
