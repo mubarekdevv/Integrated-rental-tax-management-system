@@ -583,20 +583,38 @@ model Payment {
 // TAX
 // ---------------------------------------------------------------------------
 
-// Configurable tax rule. The default 11.5% rental income tax rate is loaded
-// as seed data, not hard-coded in application logic.
+// Configurable, progressive rental-income tax rule. Rental income tax in
+// Ethiopia is bracketed, not a flat rate (PwC Worldwide Tax Summaries —
+// Ethiopia, individual rental income tax; see docs/ASSUMPTIONS.md) — each
+// TaxRule owns an ordered set of TaxBracket rows, and assessTax() applies
+// each bracket's rate only to the slice of income within it.
 model TaxRule {
-  id             String    @id @default(cuid())
-  name           String
-  ratePercentage Decimal   @db.Decimal(5, 2)
-  effectiveFrom  DateTime
-  effectiveTo    DateTime?
-  isActive       Boolean   @default(true)
-  createdById    String
-  createdBy      User      @relation("TaxRuleCreatedBy", fields: [createdById], references: [id])
-  createdAt      DateTime  @default(now())
+  id            String    @id @default(cuid())
+  name          String
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  isActive      Boolean   @default(true)
+  createdById   String
+  createdBy     User      @relation("TaxRuleCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
 
+  brackets    TaxBracket[]
   assessments TaxAssessment[]
+}
+
+// One slice of a progressive TaxRule, e.g. "24,001–48,000 ETB -> 15%".
+// maxAmountEtb is null for an open-ended top bracket ("over X").
+model TaxBracket {
+  id             String   @id @default(cuid())
+  taxRuleId      String
+  taxRule        TaxRule  @relation(fields: [taxRuleId], references: [id], onDelete: Cascade)
+  minAmountEtb   Decimal  @db.Decimal(12, 2)
+  maxAmountEtb   Decimal? @db.Decimal(12, 2)
+  ratePercentage Decimal  @db.Decimal(5, 2)
+  sortOrder      Int
+
+  @@unique([taxRuleId, sortOrder])
+  @@index([taxRuleId])
 }
 
 model TaxAssessment {
@@ -608,7 +626,11 @@ model TaxAssessment {
   periodStart      DateTime
   periodEnd        DateTime
   taxableAmountEtb Decimal             @db.Decimal(12, 2)
+  // Blended/effective rate for display only (taxAmountEtb / taxableAmountEtb
+  // * 100) — NOT a statutory rate. The real per-bracket calculation is in
+  // bracketBreakdown.
   rateApplied      Decimal             @db.Decimal(5, 2)
+  bracketBreakdown Json?
   taxAmountEtb     Decimal             @db.Decimal(12, 2)
   status           TaxAssessmentStatus @default(PENDING)
   dueDate          DateTime

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,26 +26,28 @@ export function RenewAgreementDialog({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const t = useTranslations("agreement");
+  const tCommon = useTranslations("common");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <CalendarPlus className="size-4" /> Renew Agreement
+          <CalendarPlus className="size-4" /> {tCommon("renew")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Renew Agreement</DialogTitle>
-          <DialogDescription>Current end date: {currentEndDate}. Extend the term and optionally update the rent.</DialogDescription>
+          <DialogTitle>{t("renewDialogTitle")}</DialogTitle>
+          <DialogDescription>{t("renewDialogDescription", { date: currentEndDate })}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label htmlFor="renew-end-date">New End Date</Label>
+            <Label htmlFor="renew-end-date">{t("newEndDate")}</Label>
             <Input id="renew-end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="renew-rent">Monthly Rent (ETB)</Label>
+            <Label htmlFor="renew-rent">{t("monthlyRent")}</Label>
             <Input id="renew-rent" type="number" min={0} value={rent} onChange={(e) => setRent(e.target.value)} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -56,17 +59,17 @@ export function RenewAgreementDialog({
               startTransition(async () => {
                 try {
                   await renewAgreementAction(agreementId, new Date(endDate), rent ? Number(rent) : undefined);
-                  toast.success("Agreement renewed.");
+                  toast.success(t("renewedToast"));
                   setOpen(false);
                   router.refresh();
                 } catch (e) {
-                  setError(e instanceof Error ? e.message : "Could not renew agreement.");
+                  setError(e instanceof Error ? e.message : t("renewFailedToast"));
                 }
               })
             }
           >
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Confirm renewal
+            {t("confirmRenewal")}
           </Button>
         </DialogFooter>
       </DialogContent>

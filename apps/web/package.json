@@ -13,7 +13,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "verify:workflow": "tsx scripts/verify-workflow.ts",
-    "verify:i18n": "tsx scripts/verify-i18n.ts"
+    "verify:i18n": "tsx scripts/verify-i18n.ts",
+    "verify:tax": "tsx scripts/verify-tax-calculation.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

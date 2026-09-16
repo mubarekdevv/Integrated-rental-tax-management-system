@@ -19,7 +19,15 @@ export default async function AdminDashboardPage() {
         <StatCard label="Total Users" value={totalUsers} icon={Users} />
         <StatCard label="Properties" value={propertyCount} icon={Home} />
         <StatCard label="Agreements" value={agreementCount} icon={FileText} />
-        <StatCard label="Active Tax Rate" value={taxRule ? `${Number(taxRule.ratePercentage)}%` : "Not set"} icon={Percent} />
+        <StatCard
+          label="Tax Brackets"
+          value={
+            taxRule && taxRule.brackets.length > 0
+              ? `${taxRule.brackets.length} (0–${Number(taxRule.brackets[taxRule.brackets.length - 1].ratePercentage)}%)`
+              : "Not set"
+          }
+          icon={Percent}
+        />
       </div>
 
       <Card>

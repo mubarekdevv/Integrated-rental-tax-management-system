@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,11 @@ import { SubmitPropertyButton } from "@/components/property/submit-property-butt
 
 export default async function OwnerPropertiesPage() {
   const session = await auth();
-  const ownerProfile = await prisma.ownerProfile.findUnique({ where: { userId: session!.user.id } });
+  const [ownerProfile, t, tCommon] = await Promise.all([
+    prisma.ownerProfile.findUnique({ where: { userId: session!.user.id } }),
+    getTranslations("property"),
+    getTranslations("common"),
+  ]);
   const properties = ownerProfile
     ? await prisma.property.findMany({
         where: { ownerships: { some: { ownerProfileId: ownerProfile.id } } },
@@ -21,28 +26,28 @@ export default async function OwnerPropertiesPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">My Properties</h1>
+        <h1 className="text-xl font-semibold">{t("myProperties")}</h1>
         <Button asChild>
-          <Link href="/dashboard/owner/properties/new">Register Property</Link>
+          <Link href="/dashboard/owner/properties/new">{t("registerNew")}</Link>
         </Button>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>All Properties</CardTitle>
+          <CardTitle>{t("allPropertiesTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           {properties.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No properties yet.</p>
+            <p className="text-sm text-muted-foreground">{t("noPropertiesYet")}</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Sub-city</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("code")}</TableHead>
+                    <TableHead>{t("propertyTitle")}</TableHead>
+                    <TableHead>{t("subCity")}</TableHead>
+                    <TableHead>{tCommon("status")}</TableHead>
+                    <TableHead className="text-right">{tCommon("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -59,7 +64,7 @@ export default async function OwnerPropertiesPage() {
                           <SubmitPropertyButton propertyId={p.id} />
                         )}
                         <Button asChild size="sm" variant="outline">
-                          <Link href={`/dashboard/owner/properties/${p.id}`}>View</Link>
+                          <Link href={`/dashboard/owner/properties/${p.id}`}>{tCommon("view")}</Link>
                         </Button>
                       </TableCell>
                     </TableRow>

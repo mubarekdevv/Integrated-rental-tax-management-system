@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,7 +12,10 @@ export default async function NewAgreementPage({
 }) {
   const { propertyId } = await searchParams;
   const session = await auth();
-  const ownerProfile = await prisma.ownerProfile.findUnique({ where: { userId: session!.user.id } });
+  const [ownerProfile, t] = await Promise.all([
+    prisma.ownerProfile.findUnique({ where: { userId: session!.user.id } }),
+    getTranslations("agreement"),
+  ]);
 
   const properties = ownerProfile
     ? await prisma.property.findMany({
@@ -27,21 +31,21 @@ export default async function NewAgreementPage({
     <div className="mx-auto max-w-xl">
       <Card>
         <CardHeader>
-          <CardTitle>Create a Rental Agreement</CardTitle>
+          <CardTitle>{t("createPageTitle")}</CardTitle>
           <CardDescription>
-            Select an approved property and a tenant.{" "}
+            {t("createPageDescriptionPrefix")}{" "}
             <Link href="/dashboard/owner/tenants/new" className="underline">
-              Register a new tenant
+              {t("registerNewTenantLink")}
             </Link>{" "}
-            if they don&apos;t have an account yet.
+            {t("createPageDescriptionSuffix")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {properties.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              You don&apos;t have any approved properties yet.{" "}
+              {t("noApprovedProperties")}{" "}
               <Link href="/dashboard/owner/properties" className="underline">
-                View my properties
+                {t("viewMyProperties")}
               </Link>
               .
             </p>

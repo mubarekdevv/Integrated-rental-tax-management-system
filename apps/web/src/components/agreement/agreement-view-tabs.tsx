@@ -1,12 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-const TABS = [
-  { key: "all", label: "All", href: "/dashboard/housing/agreements" },
-  { key: "active", label: "Active", href: "/dashboard/housing/agreements/active" },
-] as const;
-
 export function AgreementViewTabs({ active }: { active: "all" | "active" }) {
+  const t = useTranslations("agreement");
+  const TABS = [
+    { key: "all", label: t("tabAll"), href: "/dashboard/housing/agreements" },
+    { key: "active", label: t("tabActive"), href: "/dashboard/housing/agreements/active" },
+  ] as const;
   return (
     <div className="mb-4 flex flex-wrap gap-1 border-b">
       {TABS.map((tab) => (

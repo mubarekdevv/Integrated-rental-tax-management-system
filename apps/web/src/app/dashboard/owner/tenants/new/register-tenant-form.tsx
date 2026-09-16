@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,20 +14,21 @@ const initialState: RegisterTenantState = {};
 
 export function RegisterTenantForm() {
   const [state, action, pending] = useActionState(registerTenantByOwnerAction, initialState);
+  const t = useTranslations("tenant");
+  const tAuth = useTranslations("auth");
+  const tProfile = useTranslations("profile");
 
   if (state.success) {
     return (
       <Alert>
         <CheckCircle2 className="size-4" />
-        <AlertTitle>Tenant registered</AlertTitle>
+        <AlertTitle>{t("registeredTitle")}</AlertTitle>
         <AlertDescription>
-          <p>
-            Share these temporary credentials with the tenant so they can log in and complete their profile:
-          </p>
+          <p>{t("credentialsShare")}</p>
           <p className="mt-2 font-mono text-sm">
-            Email: {state.success.email}
+            {tAuth("email")}: {state.success.email}
             <br />
-            Temporary password: {state.success.tempPassword}
+            {t("tempPassword")}: {state.success.tempPassword}
           </p>
         </AlertDescription>
       </Alert>
@@ -37,40 +39,40 @@ export function RegisterTenantForm() {
     <form action={action} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="firstName">First Name</Label>
+          <Label htmlFor="firstName">{tAuth("firstName")}</Label>
           <Input id="firstName" name="firstName" required />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="lastName">Last Name</Label>
+          <Label htmlFor="lastName">{tAuth("lastName")}</Label>
           <Input id="lastName" name="lastName" required />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{tAuth("email")}</Label>
         <Input id="email" name="email" type="email" required />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="phone">Phone Number</Label>
+        <Label htmlFor="phone">{tAuth("phone")}</Label>
         <Input id="phone" name="phone" placeholder="0911234567" required />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label>ID Type</Label>
+          <Label>{tProfile("idType")}</Label>
           <IdTypeSelect name="idType" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="idNumber">ID Number</Label>
+          <Label htmlFor="idNumber">{tProfile("idNumber")}</Label>
           <Input id="idNumber" name="idNumber" required />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="motherName">Mother&apos;s Name (optional)</Label>
+        <Label htmlFor="motherName">{tProfile("motherName")}</Label>
         <Input id="motherName" name="motherName" />
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending}>
         {pending && <Loader2 className="size-4 animate-spin" />}
-        Register tenant
+        {t("registerCta")}
       </Button>
     </form>
   );

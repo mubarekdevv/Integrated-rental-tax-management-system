@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Home, FileText, Clock, Receipt } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
 import { getOwnerDashboard } from "@/lib/services/dashboard.service";
 import { StatCard } from "@/components/shared/stat-card";
@@ -12,19 +13,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export default async function OwnerDashboardPage() {
   const session = await auth();
-  const data = await getOwnerDashboard(session!.user.id);
+  const [data, tDash, tCommon, tProperty, tAgreement, tNav] = await Promise.all([
+    getOwnerDashboard(session!.user.id),
+    getTranslations("dashboard"),
+    getTranslations("common"),
+    getTranslations("property"),
+    getTranslations("agreement"),
+    getTranslations("nav"),
+  ]);
 
   if (!data.profileComplete) {
     return (
       <div className="mx-auto max-w-xl">
         <Alert>
-          <AlertTitle>Complete your owner profile</AlertTitle>
-          <AlertDescription>
-            Before you can register a property, please provide your identity details.
-          </AlertDescription>
+          <AlertTitle>{tDash("completeOwnerProfileTitle")}</AlertTitle>
+          <AlertDescription>{tDash("completeOwnerProfileDescription")}</AlertDescription>
         </Alert>
         <Button asChild className="mt-4">
-          <Link href="/dashboard/owner/profile">Complete profile</Link>
+          <Link href="/dashboard/owner/profile">{tCommon("completeProfile")}</Link>
         </Button>
       </div>
     );
@@ -35,39 +41,39 @@ export default async function OwnerDashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Welcome, ${session!.user.firstName}`}
-        description="Here is an overview of your properties and agreements."
+        title={tDash("welcomeName", { name: session!.user.firstName })}
+        description={tDash("ownerSubtitle")}
         actions={
           <Button asChild>
-            <Link href="/dashboard/owner/properties/new">Register Property</Link>
+            <Link href="/dashboard/owner/properties/new">{tProperty("registerNew")}</Link>
           </Button>
         }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Properties" value={stats.totalProperties} icon={Home} />
-        <StatCard label="Active Agreements" value={stats.activeAgreements} icon={FileText} />
-        <StatCard label="Pending Review" value={stats.pendingReview} icon={Clock} />
-        <StatCard label="Unpaid Tax Items" value={stats.unpaidTax} icon={Receipt} />
+        <StatCard label={tDash("properties")} value={stats.totalProperties} icon={Home} />
+        <StatCard label={tNav("activeAgreements")} value={stats.activeAgreements} icon={FileText} />
+        <StatCard label={tDash("pendingReview")} value={stats.pendingReview} icon={Clock} />
+        <StatCard label={tDash("unpaidTaxItems")} value={stats.unpaidTax} icon={Receipt} />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>My Properties</CardTitle>
+          <CardTitle>{tDash("myPropertiesCard")}</CardTitle>
         </CardHeader>
         <CardContent>
           {properties.length === 0 ? (
-            <p className="text-sm text-muted-foreground">You haven&apos;t registered a property yet.</p>
+            <p className="text-sm text-muted-foreground">{tDash("notRegisteredPropertyYet")}</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Property</TableHead>
-                    <TableHead>Sub-city</TableHead>
-                    <TableHead>Asking Rent</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{tProperty("propertyTitle")}</TableHead>
+                    <TableHead>{tProperty("subCity")}</TableHead>
+                    <TableHead>{tProperty("askingRent")}</TableHead>
+                    <TableHead>{tCommon("status")}</TableHead>
+                    <TableHead className="text-right">{tCommon("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -81,7 +87,7 @@ export default async function OwnerDashboardPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button asChild size="sm" variant="outline">
-                          <Link href={`/dashboard/owner/properties/${p.id}`}>View</Link>
+                          <Link href={`/dashboard/owner/properties/${p.id}`}>{tCommon("view")}</Link>
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -92,7 +98,7 @@ export default async function OwnerDashboardPage() {
           )}
           <div className="mt-4 text-right">
             <Button asChild variant="link">
-              <Link href="/dashboard/owner/properties">View all properties</Link>
+              <Link href="/dashboard/owner/properties">{tDash("viewAllProperties")}</Link>
             </Button>
           </div>
         </CardContent>
@@ -100,22 +106,22 @@ export default async function OwnerDashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>My Agreements</CardTitle>
+          <CardTitle>{tDash("myAgreementsCard")}</CardTitle>
         </CardHeader>
         <CardContent>
           {agreements.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No rental agreements yet.</p>
+            <p className="text-sm text-muted-foreground">{tDash("noAgreementsYet")}</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Agreement #</TableHead>
-                    <TableHead>Property</TableHead>
-                    <TableHead>Tenant</TableHead>
-                    <TableHead>Rent</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{tAgreement("agreementHash")}</TableHead>
+                    <TableHead>{tAgreement("propertyField")}</TableHead>
+                    <TableHead>{tAgreement("tenantField")}</TableHead>
+                    <TableHead>{tProperty("rent")}</TableHead>
+                    <TableHead>{tCommon("status")}</TableHead>
+                    <TableHead className="text-right">{tCommon("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -132,7 +138,7 @@ export default async function OwnerDashboardPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button asChild size="sm" variant="outline">
-                          <Link href={`/dashboard/owner/agreements/${a.id}`}>View</Link>
+                          <Link href={`/dashboard/owner/agreements/${a.id}`}>{tCommon("view")}</Link>
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -143,7 +149,7 @@ export default async function OwnerDashboardPage() {
           )}
           <div className="mt-4 text-right">
             <Button asChild variant="link">
-              <Link href="/dashboard/owner/agreements">View all agreements</Link>
+              <Link href="/dashboard/owner/agreements">{tDash("viewAllAgreements")}</Link>
             </Button>
           </div>
         </CardContent>

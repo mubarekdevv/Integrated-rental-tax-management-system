@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { generateQrDataUrl } from "@/lib/services/qrcode";
@@ -27,9 +28,17 @@ export default async function ContractDocumentPage({ params }: PageProps<"/agree
     ["HOUSING_OFFICER", "TAX_OFFICER", "SUPER_ADMIN"].includes(session.user.role);
   if (!isParty) redirect("/dashboard");
 
-  const qrDataUrl = await generateQrDataUrl(
-    `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/verify/${agreement.wulQrToken}`
-  );
+  const [qrDataUrl, t, tAgreement, tProperty, tCommon, tEnumFrequency, tEnumFurnished] = await Promise.all([
+    generateQrDataUrl(`${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/verify/${agreement.wulQrToken}`),
+    getTranslations("contract"),
+    getTranslations("agreement"),
+    getTranslations("property"),
+    getTranslations("common"),
+    getTranslations("enums.paymentFrequency"),
+    getTranslations("enums.furnishedStatus"),
+  ]);
+
+  const woredaText = agreement.property.woreda ? t("woredaSuffix", { woreda: agreement.property.woreda.number }) : "";
 
   return (
     <div className="mx-auto max-w-2xl p-6 print:p-0">
@@ -39,64 +48,62 @@ export default async function ContractDocumentPage({ params }: PageProps<"/agree
       <div className="space-y-6 rounded-lg border bg-white p-8 text-sm text-black print:border-0">
         <div className="flex items-center justify-between border-b pb-4">
           <div>
-            <h1 className="text-lg font-bold">Contract Agreement</h1>
-            <p className="text-muted-foreground">Housing Development and Administration Bureau</p>
+            <h1 className="text-lg font-bold">{t("documentTitle")}</h1>
+            <p className="text-muted-foreground">{t("bureau")}</p>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={qrDataUrl} alt="Verification QR code" width={90} height={90} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Contract Number" value={agreement.wulNumber} />
-          <Field label="Agreement Number" value={agreement.agreementNumber} />
-          <Field label="Issued" value={agreement.wulIssuedAt?.toDateString() ?? "-"} />
-          <Field label="Status" value={agreement.status.replaceAll("_", " ")} />
+          <Field label={tAgreement("contractNumberLabel")} value={agreement.wulNumber} />
+          <Field label={tAgreement("agreementNumber")} value={agreement.agreementNumber} />
+          <Field label={t("issued")} value={agreement.wulIssuedAt?.toDateString() ?? "-"} />
+          <Field label={tCommon("status")} value={agreement.status.replaceAll("_", " ")} />
         </div>
 
         <section>
-          <h2 className="mb-2 font-semibold">1. Parties</h2>
+          <h2 className="mb-2 font-semibold">{t("partiesTitle")}</h2>
           <p>
-            Lessor (Owner): {owner?.user.firstName} {owner?.user.lastName} — {owner?.user.phone}
+            {t("lessor")}: {owner?.user.firstName} {owner?.user.lastName} — {owner?.user.phone}
           </p>
           <p>
-            Lessee (Tenant): {agreement.tenant.user.firstName} {agreement.tenant.user.lastName} — {agreement.tenant.user.phone}
-          </p>
-        </section>
-
-        <section>
-          <h2 className="mb-2 font-semibold">2. Leased Property</h2>
-          <p>
-            {agreement.property.title}, House No. {agreement.property.houseNumber}, {agreement.property.subCity.name} Sub-city
-            {agreement.property.woreda ? `, Woreda ${agreement.property.woreda.number}` : ""}, Addis Ababa.
+            {t("lessee")}: {agreement.tenant.user.firstName} {agreement.tenant.user.lastName} — {agreement.tenant.user.phone}
           </p>
         </section>
 
         <section>
-          <h2 className="mb-2 font-semibold">3. Rental Terms</h2>
+          <h2 className="mb-2 font-semibold">{t("propertyTitle")}</h2>
+          <p>
+            {t("propertyDescription", {
+              title: agreement.property.title,
+              houseNumber: agreement.property.houseNumber,
+              subCity: agreement.property.subCity.name,
+              woredaText,
+            })}
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 font-semibold">{t("termsTitle")}</h2>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Start Date" value={agreement.startDate.toDateString()} />
-            <Field label="End Date" value={agreement.endDate.toDateString()} />
-            <Field label="Monthly Rent" value={`${Number(agreement.rentalAmountEtb).toLocaleString()} ETB`} />
-            <Field label="Payment Frequency" value={agreement.paymentFrequency.replaceAll("_", " ")} />
-            <Field label="Furnished" value={agreement.furnishedStatus.replaceAll("_", " ")} />
-            <Field label="Service Fee" value={`${Number(agreement.serviceFeeAmountEtb).toLocaleString()} ETB`} />
+            <Field label={tAgreement("startDate")} value={agreement.startDate.toDateString()} />
+            <Field label={tAgreement("endDate")} value={agreement.endDate.toDateString()} />
+            <Field label={t("monthlyRent")} value={`${Number(agreement.rentalAmountEtb).toLocaleString()} ETB`} />
+            <Field label={tAgreement("paymentFrequency")} value={tEnumFrequency(agreement.paymentFrequency)} />
+            <Field label={tProperty("furnished")} value={tEnumFurnished(agreement.furnishedStatus)} />
+            <Field label={tAgreement("serviceFee")} value={`${Number(agreement.serviceFeeAmountEtb).toLocaleString()} ETB`} />
           </div>
         </section>
 
         <section>
-          <h2 className="mb-2 font-semibold">4. Conditions</h2>
-          <p className="text-muted-foreground">
-            This document certifies that the above rental agreement has been reviewed and approved by the Housing
-            Development and Administration Bureau in accordance with the Housing Rent Control and Management
-            Proclamation No. 1320/2016 and Directive No. 184/2025. Disputes regarding rent, damages, or termination
-            are handled according to those regulations. Rent must be paid through a bank or other legal electronic
-            means. Scan the QR code above to verify the current status of this agreement online.
-          </p>
+          <h2 className="mb-2 font-semibold">{t("conditionsTitle")}</h2>
+          <p className="text-muted-foreground">{t("conditionsText")}</p>
         </section>
 
         <div className="grid grid-cols-2 gap-8 pt-8 text-center">
-          <div className="border-t pt-2">Lessor Signature</div>
-          <div className="border-t pt-2">Lessee Signature</div>
+          <div className="border-t pt-2">{t("lessorSignature")}</div>
+          <div className="border-t pt-2">{t("lesseeSignature")}</div>
         </div>
       </div>
     </div>

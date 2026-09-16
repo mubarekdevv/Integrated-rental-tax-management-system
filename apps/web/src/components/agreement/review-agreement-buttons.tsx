@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, Check, X, MessageSquareWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,17 +16,25 @@ export function ReviewAgreementButtons({ agreementId }: { agreementId: string })
   const [dialogDecision, setDialogDecision] = useState<AgreementReviewDecision | null>(null);
   const [comment, setComment] = useState("");
   const router = useRouter();
+  const t = useTranslations("agreement");
+  const tCommon = useTranslations("common");
+
+  const TOASTS: Record<AgreementReviewDecision, string> = {
+    APPROVED: t("approveToast"),
+    REJECTED: t("rejectToast"),
+    CORRECTION_REQUIRED: t("correctionRequestedToast"),
+  };
 
   function run(decision: AgreementReviewDecision, note?: string) {
     startTransition(async () => {
       try {
         await reviewAgreementAction(agreementId, decision, note);
-        toast.success(`Agreement ${decision.toLowerCase().replaceAll("_", " ")}.`);
+        toast.success(TOASTS[decision]);
         setDialogDecision(null);
         setComment("");
         router.refresh();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Action failed.");
+        toast.error(error instanceof Error ? error.message : tCommon("actionFailed"));
       }
     });
   }
@@ -34,23 +43,23 @@ export function ReviewAgreementButtons({ agreementId }: { agreementId: string })
     <div className="flex flex-wrap gap-2">
       <Button size="sm" disabled={pending} onClick={() => run("APPROVED")}>
         {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-        Approve
+        {tCommon("approve")}
       </Button>
 
       <Dialog open={dialogDecision === "CORRECTION_REQUIRED"} onOpenChange={(open) => setDialogDecision(open ? "CORRECTION_REQUIRED" : null)}>
         <DialogTrigger asChild>
           <Button size="sm" variant="outline" disabled={pending}>
-            <MessageSquareWarning className="size-4" /> Request Correction
+            <MessageSquareWarning className="size-4" /> {tCommon("requestCorrection")}
           </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Request Correction</DialogTitle>
+            <DialogTitle>{tCommon("requestCorrection")}</DialogTitle>
           </DialogHeader>
-          <Textarea placeholder="Explain what needs to be corrected..." value={comment} onChange={(e) => setComment(e.target.value)} />
+          <Textarea placeholder={t("correctionDialogPlaceholder")} value={comment} onChange={(e) => setComment(e.target.value)} />
           <DialogFooter>
             <Button disabled={pending || !comment} onClick={() => run("CORRECTION_REQUIRED", comment)}>
-              Send
+              {tCommon("send")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -59,17 +68,17 @@ export function ReviewAgreementButtons({ agreementId }: { agreementId: string })
       <Dialog open={dialogDecision === "REJECTED"} onOpenChange={(open) => setDialogDecision(open ? "REJECTED" : null)}>
         <DialogTrigger asChild>
           <Button size="sm" variant="destructive" disabled={pending}>
-            <X className="size-4" /> Reject
+            <X className="size-4" /> {tCommon("reject")}
           </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Agreement</DialogTitle>
+            <DialogTitle>{t("rejectDialogTitle")}</DialogTitle>
           </DialogHeader>
-          <Textarea placeholder="Reason for rejection..." value={comment} onChange={(e) => setComment(e.target.value)} />
+          <Textarea placeholder={t("rejectDialogPlaceholder")} value={comment} onChange={(e) => setComment(e.target.value)} />
           <DialogFooter>
             <Button variant="destructive" disabled={pending || !comment} onClick={() => run("REJECTED", comment)}>
-              Reject
+              {tCommon("reject")}
             </Button>
           </DialogFooter>
         </DialogContent>

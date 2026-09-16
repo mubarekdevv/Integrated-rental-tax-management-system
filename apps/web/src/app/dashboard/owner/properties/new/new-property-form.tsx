@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,54 +24,59 @@ const initialState: ActionFormState = {};
 export function NewPropertyForm({ subCities }: { subCities: { id: number; name: string }[] }) {
   const [state, action, pending] = useActionState(createPropertyAction, initialState);
   const router = useRouter();
+  const t = useTranslations("property");
+  const tEnumProperty = useTranslations("enums.propertyType");
+  const tEnumConstruction = useTranslations("enums.constructionType");
+  const tEnumFurnished = useTranslations("enums.furnishedStatus");
+  const tProfile = useTranslations("profile");
 
   useEffect(() => {
     if (state === initialState) return;
     if (!state.error && !state.fieldErrors) {
-      toast.success("Property registered as a draft.");
+      toast.success(t("registeredDraftToast"));
       router.push("/dashboard/owner/properties");
     }
-  }, [state, router]);
+  }, [state, router, t]);
 
   return (
     <form action={action} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">Title</Label>
-        <Input id="title" name="title" placeholder="e.g. 2-Bedroom Apartment near Bole" required />
+        <Label htmlFor="title">{t("propertyTitle")}</Label>
+        <Input id="title" name="title" placeholder={t("titlePlaceholder")} required />
         {state.fieldErrors?.title && <p className="text-sm text-destructive">{state.fieldErrors.title[0]}</p>}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
+        <Label htmlFor="description">{t("description")}</Label>
         <Textarea id="description" name="description" rows={3} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label>Property Type</Label>
+          <Label>{t("propertyType")}</Label>
           <Select name="propertyType" defaultValue="APARTMENT">
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PROPERTY_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t.replaceAll("_", " ")}
+              {PROPERTY_TYPES.map((t2) => (
+                <SelectItem key={t2} value={t2}>
+                  {tEnumProperty(t2)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Construction Type</Label>
+          <Label>{t("constructionType")}</Label>
           <Select name="constructionType" defaultValue="CONCRETE">
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {CONSTRUCTION_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t.replaceAll("_", " ")}
+              {CONSTRUCTION_TYPES.map((t2) => (
+                <SelectItem key={t2} value={t2}>
+                  {tEnumConstruction(t2)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -80,48 +86,48 @@ export function NewPropertyForm({ subCities }: { subCities: { id: number; name: 
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="numberOfRooms">Number of Rooms</Label>
+          <Label htmlFor="numberOfRooms">{t("numberOfRooms")}</Label>
           <Input id="numberOfRooms" name="numberOfRooms" type="number" min={1} defaultValue={1} required />
           {state.fieldErrors?.numberOfRooms && (
             <p className="text-sm text-destructive">{state.fieldErrors.numberOfRooms[0]}</p>
           )}
         </div>
         <div className="space-y-2">
-          <Label>Furnished Status</Label>
+          <Label>{t("furnishedStatus")}</Label>
           <Select name="furnishedStatus" defaultValue="UNFURNISHED">
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {FURNISHED_STATUSES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t.replaceAll("_", " ")}
+              {FURNISHED_STATUSES.map((t2) => (
+                <SelectItem key={t2} value={t2}>
+                  {tEnumFurnished(t2)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="sizeSqm">Size (sqm)</Label>
+          <Label htmlFor="sizeSqm">{t("size")}</Label>
           <Input id="sizeSqm" name="sizeSqm" type="number" min={0} step="0.1" />
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label>Sub-city</Label>
-          <SubCitySelect name="subCityId" subCities={subCities} />
+          <Label>{t("subCity")}</Label>
+          <SubCitySelect name="subCityId" subCities={subCities} placeholder={tProfile("selectSubCity")} />
           {state.fieldErrors?.subCityId && <p className="text-sm text-destructive">{state.fieldErrors.subCityId[0]}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="houseNumber">House Number</Label>
+          <Label htmlFor="houseNumber">{t("houseNumber")}</Label>
           <Input id="houseNumber" name="houseNumber" required />
           {state.fieldErrors?.houseNumber && <p className="text-sm text-destructive">{state.fieldErrors.houseNumber[0]}</p>}
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="askingRentEtb">Asking Rent (ETB / month)</Label>
+        <Label htmlFor="askingRentEtb">{t("askingRent")}</Label>
         <Input id="askingRentEtb" name="askingRentEtb" type="number" min={0} step="1" required />
         {state.fieldErrors?.askingRentEtb && (
           <p className="text-sm text-destructive">{state.fieldErrors.askingRentEtb[0]}</p>
@@ -132,7 +138,7 @@ export function NewPropertyForm({ subCities }: { subCities: { id: number; name: 
 
       <Button type="submit" disabled={pending}>
         {pending && <Loader2 className="size-4 animate-spin" />}
-        Save as draft
+        {t("saveDraft")}
       </Button>
     </form>
   );

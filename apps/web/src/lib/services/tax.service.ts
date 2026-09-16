@@ -13,11 +13,72 @@ export interface AssessTaxInput {
   actorId: string;
 }
 
+export interface TaxBracketLike {
+  minAmountEtb: number;
+  maxAmountEtb: number | null;
+  ratePercentage: number;
+  sortOrder: number;
+}
+
+export interface TaxBracketBreakdownRow {
+  minAmountEtb: number;
+  maxAmountEtb: number | null;
+  ratePercentage: number;
+  amountInBracketEtb: number;
+  taxForBracketEtb: number;
+}
+
+/**
+ * Ethiopian rental-income tax is progressive (PwC Worldwide Tax Summaries —
+ * Ethiopia, individual rental income tax; see docs/ASSUMPTIONS.md), NOT a
+ * flat rate: each bracket's rate applies only to the slice of taxable
+ * income that falls within that bracket, exactly like marginal income-tax
+ * brackets. This is a pure function (no DB access) so it can be unit-tested
+ * directly — see scripts/verify-tax-calculation.ts.
+ */
+export function calculateProgressiveTax(
+  taxableAmountEtb: number,
+  brackets: TaxBracketLike[]
+): { taxAmountEtb: number; breakdown: TaxBracketBreakdownRow[] } {
+  if (!Number.isFinite(taxableAmountEtb) || taxableAmountEtb < 0) {
+    throw new Error(`Invalid taxable amount: ${taxableAmountEtb}`);
+  }
+  if (brackets.length === 0) {
+    throw new Error("No tax brackets configured for the active tax rule.");
+  }
+
+  const sorted = [...brackets].sort((a, b) => a.sortOrder - b.sortOrder);
+  let totalTax = 0;
+  const breakdown: TaxBracketBreakdownRow[] = [];
+
+  for (const bracket of sorted) {
+    const min = bracket.minAmountEtb;
+    const max = bracket.maxAmountEtb ?? Infinity;
+    if (taxableAmountEtb <= min) break;
+
+    const amountInBracketEtb = Math.round((Math.min(taxableAmountEtb, max) - min) * 100) / 100;
+    if (amountInBracketEtb <= 0) continue;
+
+    const taxForBracketEtb = Math.round(amountInBracketEtb * (bracket.ratePercentage / 100) * 100) / 100;
+    totalTax += taxForBracketEtb;
+    breakdown.push({
+      minAmountEtb: min,
+      maxAmountEtb: bracket.maxAmountEtb,
+      ratePercentage: bracket.ratePercentage,
+      amountInBracketEtb,
+      taxForBracketEtb,
+    });
+  }
+
+  return { taxAmountEtb: Math.round(totalTax * 100) / 100, breakdown };
+}
+
 /**
  * Assessment assumption (see docs/ASSUMPTIONS.md): the rental amount on the
  * agreement is treated as a monthly figure; the taxable amount for a period
- * is monthly rent x number of months in that period, taxed at the currently
- * active TaxRule rate (11.5% by default in seed data, not hard-coded here).
+ * is monthly rent x number of months in that period. That amount is then
+ * taxed progressively against the currently active TaxRule's brackets
+ * (never a single flat rate hard-coded here).
  */
 export async function assessTax(input: AssessTaxInput) {
   const agreement = await prisma.rentalAgreement.findUniqueOrThrow({ where: { id: input.agreementId } });
@@ -26,8 +87,19 @@ export async function assessTax(input: AssessTaxInput) {
 
   const months = Math.max(1, differenceInCalendarMonths(input.periodEnd, input.periodStart));
   const taxableAmountEtb = Number(agreement.rentalAmountEtb) * months;
-  const rateApplied = Number(taxRule.ratePercentage);
-  const taxAmountEtb = Math.round(taxableAmountEtb * (rateApplied / 100) * 100) / 100;
+
+  const { taxAmountEtb, breakdown } = calculateProgressiveTax(
+    taxableAmountEtb,
+    taxRule.brackets.map((b) => ({
+      minAmountEtb: Number(b.minAmountEtb),
+      maxAmountEtb: b.maxAmountEtb != null ? Number(b.maxAmountEtb) : null,
+      ratePercentage: Number(b.ratePercentage),
+      sortOrder: b.sortOrder,
+    }))
+  );
+  // Effective/blended rate, for display only — see the schema comment on
+  // TaxAssessment.rateApplied. The real calculation is `breakdown`.
+  const rateApplied = taxableAmountEtb > 0 ? Math.round((taxAmountEtb / taxableAmountEtb) * 10000) / 100 : 0;
 
   const assessment = await prisma.$transaction(async (tx) => {
     const created = await tx.taxAssessment.create({
@@ -38,6 +110,7 @@ export async function assessTax(input: AssessTaxInput) {
         periodEnd: input.periodEnd,
         taxableAmountEtb,
         rateApplied,
+        bracketBreakdown: JSON.parse(JSON.stringify(breakdown)),
         taxAmountEtb,
         status: "ASSESSED",
         dueDate: addDays(input.periodEnd, graceDays),

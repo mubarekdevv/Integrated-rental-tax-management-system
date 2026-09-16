@@ -5,17 +5,27 @@ import { Badge } from "@/components/ui/badge";
 import { TaxRuleForm } from "./tax-rule-form";
 
 export default async function AdminTaxRulesPage() {
-  const rules = await prisma.taxRule.findMany({ orderBy: { effectiveFrom: "desc" } });
+  const rules = await prisma.taxRule.findMany({
+    orderBy: { effectiveFrom: "desc" },
+    include: { brackets: { orderBy: { sortOrder: "asc" } } },
+  });
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Tax Rules</h1>
+      <div>
+        <h1 className="text-xl font-semibold">Tax Rules</h1>
+        <p className="text-sm text-muted-foreground">
+          Rental-income tax brackets only. This is separate from any rental-price-increase regulation — a
+          landlord&apos;s permitted rent increase after the legal waiting period is not a tax rule and is not
+          configured here.
+        </p>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Create Rate Change</CardTitle>
           <CardDescription>
-            Creating a new rule deactivates the current one and starts the new rate immediately. Historical rates
-            stay on record for previously assessed periods.
+            Creating a new rule deactivates the current one and starts the new bracket table immediately.
+            Historical brackets stay on record for previously assessed periods.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -24,33 +34,40 @@ export default async function AdminTaxRulesPage() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Rate History</CardTitle>
+          <CardTitle>Rule History</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Rate</TableHead>
-                <TableHead>Effective From</TableHead>
-                <TableHead>Effective To</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rules.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.name}</TableCell>
-                  <TableCell>{Number(r.ratePercentage)}%</TableCell>
-                  <TableCell>{r.effectiveFrom.toDateString()}</TableCell>
-                  <TableCell>{r.effectiveTo ? r.effectiveTo.toDateString() : "-"}</TableCell>
-                  <TableCell>
-                    <Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "Active" : "Inactive"}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="space-y-4">
+          {rules.map((r) => (
+            <div key={r.id} className="rounded-md border p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium">{r.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.effectiveFrom.toDateString()} — {r.effectiveTo ? r.effectiveTo.toDateString() : "present"}
+                  </p>
+                </div>
+                <Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "Active" : "Inactive"}</Badge>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Bracket (ETB / year)</TableHead>
+                    <TableHead>Rate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {r.brackets.map((b) => (
+                    <TableRow key={b.id}>
+                      <TableCell>
+                        {Number(b.minAmountEtb).toLocaleString()} – {b.maxAmountEtb ? Number(b.maxAmountEtb).toLocaleString() : "and above"}
+                      </TableCell>
+                      <TableCell>{Number(b.ratePercentage)}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>

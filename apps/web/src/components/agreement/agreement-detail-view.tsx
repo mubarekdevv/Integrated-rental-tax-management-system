@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,6 +28,15 @@ export async function AgreementDetailView({
     ? await generateQrDataUrl(`${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/verify/${agreement.wulQrToken}`)
     : null;
 
+  const [t, tCommon, tProperty, tTax, tEnumFrequency, tEnumFurnished] = await Promise.all([
+    getTranslations("agreement"),
+    getTranslations("common"),
+    getTranslations("property"),
+    getTranslations("tax"),
+    getTranslations("enums.paymentFrequency"),
+    getTranslations("enums.furnishedStatus"),
+  ]);
+
   const canReview = viewerRole === "HOUSING_OFFICER" && ["SUBMITTED", "UNDER_REVIEW"].includes(agreement.status);
   const canPayServiceFee =
     viewerRole === "PROPERTY_OWNER" && !serviceFeePaid && ["SUBMITTED", "UNDER_REVIEW", "CORRECTION_REQUIRED"].includes(agreement.status);
@@ -49,46 +59,45 @@ export async function AgreementDetailView({
 
       {agreement.priceFlagged && (
         <Alert variant="destructive">
-          <AlertTitle>Price flagged for review</AlertTitle>
+          <AlertTitle>{t("priceFlaggedForReview")}</AlertTitle>
           <AlertDescription>{agreement.priceFlagReason}</AlertDescription>
         </Alert>
       )}
 
       {agreement.terminationRequestedById && agreement.status === "ACTIVE" && (
         <Alert>
-          <AlertTitle>Termination requested</AlertTitle>
+          <AlertTitle>{t("terminationRequested")}</AlertTitle>
           <AlertDescription>{agreement.terminationReason}</AlertDescription>
         </Alert>
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Agreement Terms</CardTitle>
+          <CardTitle>{t("termsTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-          <Field label="Tenant" value={`${agreement.tenant.user.firstName} ${agreement.tenant.user.lastName}`} />
-          <Field label="Property" value={`${agreement.property.title} (${agreement.property.code})`} />
-          <Field label="Sub-city" value={agreement.property.subCity.name} />
-          <Field label="Start Date" value={agreement.startDate.toDateString()} />
-          <Field label="End Date" value={agreement.endDate.toDateString()} />
-          <Field label="Rental Amount" value={`${Number(agreement.rentalAmountEtb).toLocaleString()} ETB`} />
-          <Field label="Payment Frequency" value={agreement.paymentFrequency.replaceAll("_", " ")} />
-          <Field label="Furnished" value={agreement.furnishedStatus.replaceAll("_", " ")} />
-          <Field label="Service Fee" value={`${Number(agreement.serviceFeeAmountEtb).toLocaleString()} ETB (${serviceFeePaid ? "Paid" : "Unpaid"})`} />
+          <Field label={t("tenantField")} value={`${agreement.tenant.user.firstName} ${agreement.tenant.user.lastName}`} />
+          <Field label={t("propertyField")} value={`${agreement.property.title} (${agreement.property.code})`} />
+          <Field label={tProperty("subCity")} value={agreement.property.subCity.name} />
+          <Field label={t("startDate")} value={agreement.startDate.toDateString()} />
+          <Field label={t("endDate")} value={agreement.endDate.toDateString()} />
+          <Field label={t("rentalAmount")} value={`${Number(agreement.rentalAmountEtb).toLocaleString()} ETB`} />
+          <Field label={t("paymentFrequency")} value={tEnumFrequency(agreement.paymentFrequency)} />
+          <Field label={tProperty("furnished")} value={tEnumFurnished(agreement.furnishedStatus)} />
+          <Field
+            label={t("serviceFee")}
+            value={`${Number(agreement.serviceFeeAmountEtb).toLocaleString()} ETB (${serviceFeePaid ? t("paid") : t("unpaid")})`}
+          />
         </CardContent>
       </Card>
 
       {canReview && (
         <Card>
           <CardHeader>
-            <CardTitle>Housing Review</CardTitle>
+            <CardTitle>{t("housingReviewTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
-            {!serviceFeePaid && (
-              <p className="mb-3 text-sm text-muted-foreground">
-                The service fee has not been paid yet; approval will be blocked until it is.
-              </p>
-            )}
+            {!serviceFeePaid && <p className="mb-3 text-sm text-muted-foreground">{t("serviceFeeNotPaidNotice")}</p>}
             <ReviewAgreementButtons agreementId={agreement.id} />
           </CardContent>
         </Card>
@@ -97,7 +106,7 @@ export async function AgreementDetailView({
       {canPayServiceFee && (
         <Card>
           <CardHeader>
-            <CardTitle>Service Fee Payment</CardTitle>
+            <CardTitle>{t("serviceFeePaymentTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <PayDialog purpose="SERVICE_FEE" amountEtb={Number(agreement.serviceFeeAmountEtb)} agreementId={agreement.id} />
@@ -108,7 +117,7 @@ export async function AgreementDetailView({
       {agreement.wulNumber && (
         <Card>
           <CardHeader>
-            <CardTitle>Contract Agreement</CardTitle>
+            <CardTitle>{t("contractAgreementTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             {qrDataUrl && (
@@ -117,15 +126,15 @@ export async function AgreementDetailView({
             )}
             <div className="space-y-1 text-sm">
               <p>
-                Contract Number: <span className="font-mono font-medium">{agreement.wulNumber}</span>
+                {t("contractNumberLabel")}: <span className="font-mono font-medium">{agreement.wulNumber}</span>
               </p>
-              <p className="text-muted-foreground">Issued {agreement.wulIssuedAt?.toDateString()}</p>
+              <p className="text-muted-foreground">{t("issuedOn", { date: agreement.wulIssuedAt?.toDateString() ?? "-" })}</p>
               <Link href={`/agreements/${agreement.id}/contract`} className="text-primary underline">
-                View / print full document
+                {t("viewPrintDocument")}
               </Link>
               <br />
               <Link href={`/verify/${agreement.wulQrToken}`} className="text-primary underline">
-                Open verification page
+                {t("openVerificationPage")}
               </Link>
             </div>
           </CardContent>
@@ -134,7 +143,7 @@ export async function AgreementDetailView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Tax Assessments</CardTitle>
+          <CardTitle>{t("taxAssessmentsTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {canAssessTax && agreement.taxAssessments.length === 0 && (
@@ -145,39 +154,57 @@ export async function AgreementDetailView({
             />
           )}
           {agreement.taxAssessments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No tax assessments yet.</p>
+            <p className="text-sm text-muted-foreground">{t("noTaxAssessmentsYet")}</p>
           ) : (
             <div className="overflow-x-auto">
+              <p className="mb-2 text-xs text-muted-foreground">{tTax("progressiveNote")}</p>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Period</TableHead>
-                    <TableHead>Rate</TableHead>
-                    <TableHead>Tax Amount</TableHead>
-                    <TableHead>Due</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead>{t("period")}</TableHead>
+                    <TableHead>{tTax("effectiveRate")}</TableHead>
+                    <TableHead>{tTax("taxAmount")}</TableHead>
+                    <TableHead>{tTax("dueDate")}</TableHead>
+                    <TableHead>{tCommon("status")}</TableHead>
+                    <TableHead className="text-right">{tCommon("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {agreement.taxAssessments.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell>
-                        {t.periodStart.toDateString()} - {t.periodEnd.toDateString()}
-                      </TableCell>
-                      <TableCell>{Number(t.rateApplied)}%</TableCell>
-                      <TableCell>{Number(t.taxAmountEtb).toLocaleString()} ETB</TableCell>
-                      <TableCell>{t.dueDate.toDateString()}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={t.status} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {viewerRole === "PROPERTY_OWNER" && (t.status === "ASSESSED" || t.status === "OVERDUE") && (
-                          <PayDialog purpose="TAX" amountEtb={Number(t.taxAmountEtb)} taxAssessmentId={t.id} label="Pay Tax" />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {agreement.taxAssessments.map((ta) => {
+                    const breakdown = Array.isArray(ta.bracketBreakdown)
+                      ? (ta.bracketBreakdown as unknown as {
+                          minAmountEtb: number;
+                          maxAmountEtb: number | null;
+                          ratePercentage: number;
+                          amountInBracketEtb: number;
+                          taxForBracketEtb: number;
+                        }[])
+                      : [];
+                    const breakdownTitle = breakdown
+                      .map(
+                        (b) =>
+                          `${b.minAmountEtb.toLocaleString()}–${b.maxAmountEtb ? b.maxAmountEtb.toLocaleString() : "+"} @ ${b.ratePercentage}% = ${b.taxForBracketEtb.toLocaleString()} ETB`
+                      )
+                      .join("\n");
+                    return (
+                      <TableRow key={ta.id}>
+                        <TableCell>
+                          {ta.periodStart.toDateString()} - {ta.periodEnd.toDateString()}
+                        </TableCell>
+                        <TableCell title={breakdownTitle || undefined}>{Number(ta.rateApplied)}%</TableCell>
+                        <TableCell>{Number(ta.taxAmountEtb).toLocaleString()} ETB</TableCell>
+                        <TableCell>{ta.dueDate.toDateString()}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={ta.status} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {viewerRole === "PROPERTY_OWNER" && (ta.status === "ASSESSED" || ta.status === "OVERDUE") && (
+                            <PayDialog purpose="TAX" amountEtb={Number(ta.taxAmountEtb)} taxAssessmentId={ta.id} label={t("payTax")} />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -188,17 +215,17 @@ export async function AgreementDetailView({
       {agreement.penalties.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Penalties</CardTitle>
+            <CardTitle>{t("penaltiesTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Reason</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead>{tCommon("reason")}</TableHead>
+                    <TableHead>{tCommon("amount")}</TableHead>
+                    <TableHead>{tCommon("status")}</TableHead>
+                    <TableHead className="text-right">{tCommon("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -211,7 +238,7 @@ export async function AgreementDetailView({
                       </TableCell>
                       <TableCell className="text-right">
                         {p.status === "APPROVED" && p.responsiblePartyId === viewerUserId && (
-                          <PayDialog purpose="PENALTY" amountEtb={Number(p.calculatedAmountEtb)} penaltyId={p.id} label="Pay Penalty" />
+                          <PayDialog purpose="PENALTY" amountEtb={Number(p.calculatedAmountEtb)} penaltyId={p.id} label={t("payPenalty")} />
                         )}
                       </TableCell>
                     </TableRow>
@@ -226,18 +253,18 @@ export async function AgreementDetailView({
       {agreement.versions.length > 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Change History</CardTitle>
+            <CardTitle>{t("changeHistoryTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Change</TableHead>
-                    <TableHead>Rent</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Reason</TableHead>
+                    <TableHead>{t("version")}</TableHead>
+                    <TableHead>{t("change")}</TableHead>
+                    <TableHead>{t("rentalAmount")}</TableHead>
+                    <TableHead>{t("endDate")}</TableHead>
+                    <TableHead>{tCommon("reason")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

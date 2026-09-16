@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db/prisma";
 import { PublicHeader } from "@/components/shared/public-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,10 +7,16 @@ import { StatusBadge } from "@/components/shared/status-badge";
 
 export default async function VerifyContractPage({ params }: PageProps<"/verify/[token]">) {
   const { token } = await params;
-  const agreement = await prisma.rentalAgreement.findUnique({
-    where: { wulQrToken: token },
-    include: { property: { include: { subCity: true } } },
-  });
+  const [agreement, t, tAgreement, tCommon, tProperty] = await Promise.all([
+    prisma.rentalAgreement.findUnique({
+      where: { wulQrToken: token },
+      include: { property: { include: { subCity: true } } },
+    }),
+    getTranslations("contract"),
+    getTranslations("agreement"),
+    getTranslations("common"),
+    getTranslations("property"),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -22,27 +29,25 @@ export default async function VerifyContractPage({ params }: PageProps<"/verify/
             ) : (
               <XCircle className="mx-auto size-12 text-destructive" />
             )}
-            <CardTitle className="mt-2">{agreement ? "Valid Contract Agreement" : "Document Not Found"}</CardTitle>
+            <CardTitle className="mt-2">{agreement ? t("verifyValidTitle") : t("verifyNotFoundTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-center text-sm">
             {agreement ? (
               <>
-                <p className="text-muted-foreground">This QR code corresponds to a genuine, system-issued rental agreement.</p>
+                <p className="text-muted-foreground">{t("verifyValidDescription")}</p>
                 <div className="rounded-md border p-4 text-left">
-                  <Row label="Contract Number" value={agreement.wulNumber ?? "-"} />
-                  <Row label="Agreement Number" value={agreement.agreementNumber} />
-                  <Row label="Sub-city" value={agreement.property.subCity.name} />
-                  <Row label="Issued" value={agreement.wulIssuedAt?.toDateString() ?? "-"} />
+                  <Row label={tAgreement("contractNumberLabel")} value={agreement.wulNumber ?? "-"} />
+                  <Row label={tAgreement("agreementNumber")} value={agreement.agreementNumber} />
+                  <Row label={tProperty("subCity")} value={agreement.property.subCity.name} />
+                  <Row label={t("issued")} value={agreement.wulIssuedAt?.toDateString() ?? "-"} />
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="text-muted-foreground">Status</span>
+                    <span className="text-muted-foreground">{tCommon("status")}</span>
                     <StatusBadge status={agreement.status} />
                   </div>
                 </div>
               </>
             ) : (
-              <p className="text-muted-foreground">
-                No agreement matches this verification code. It may be invalid or the link may be corrupted.
-              </p>
+              <p className="text-muted-foreground">{t("verifyNotFoundDescription")}</p>
             )}
           </CardContent>
         </Card>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,12 +14,7 @@ import { initiatePaymentAction } from "@/server/actions/payment";
 import type { ActionFormState } from "@/server/actions/auth";
 import type { PaymentPurpose } from "@/generated/prisma/enums";
 
-const PROVIDERS = [
-  { value: "CBE", label: "Commercial Bank of Ethiopia" },
-  { value: "TELEBIRR", label: "telebirr" },
-  { value: "BANK_TRANSFER", label: "Bank Transfer" },
-  { value: "CASH", label: "Cash" },
-];
+const PROVIDERS = ["CBE", "TELEBIRR", "BANK_TRANSFER", "CASH"];
 
 export function PayDialog({
   purpose,
@@ -39,6 +35,15 @@ export function PayDialog({
   const [result, setResult] = useState<ActionFormState>({});
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const t = useTranslations("payment");
+  const tAuth = useTranslations("auth");
+
+  const PROVIDER_LABELS: Record<string, string> = {
+    CBE: t("providerCbe"),
+    TELEBIRR: t("providerTelebirr"),
+    BANK_TRANSFER: t("providerBankTransfer"),
+    CASH: t("providerCash"),
+  };
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -51,7 +56,7 @@ export function PayDialog({
       );
       setResult(outcome);
       if (!outcome.error && !outcome.fieldErrors) {
-        toast.success("Payment completed.");
+        toast.success(t("completedToast"));
         setOpen(false);
         router.refresh();
       }
@@ -63,34 +68,34 @@ export function PayDialog({
       <DialogTrigger asChild>
         <Button size="sm">
           <CreditCard className="size-4" />
-          {label ?? `Pay ${amountEtb.toLocaleString()} ETB`}
+          {label ?? t("payAmount", { amount: amountEtb.toLocaleString() })}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Make a Payment</DialogTitle>
+          <DialogTitle>{t("makeAPayment")}</DialogTitle>
           <DialogDescription>
             {purpose.replaceAll("_", " ")} &middot; {amountEtb.toLocaleString()} ETB
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Payment Provider</Label>
+            <Label>{t("provider")}</Label>
             <Select name="providerType" defaultValue="CBE">
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PROVIDERS.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>
-                    {p.label}
+                  <SelectItem key={p} value={p}>
+                    {PROVIDER_LABELS[p]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="payerPhone">Phone Number</Label>
+            <Label htmlFor="payerPhone">{tAuth("phone")}</Label>
             <Input id="payerPhone" name="payerPhone" placeholder="0911234567" required />
             {result.fieldErrors?.payerPhone && <p className="text-sm text-destructive">{result.fieldErrors.payerPhone[0]}</p>}
           </div>
@@ -98,7 +103,7 @@ export function PayDialog({
           <DialogFooter>
             <Button type="submit" disabled={pending}>
               {pending && <Loader2 className="size-4 animate-spin" />}
-              Confirm payment
+              {t("confirmPayment")}
             </Button>
           </DialogFooter>
         </form>

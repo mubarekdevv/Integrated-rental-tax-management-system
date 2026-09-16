@@ -156,7 +156,7 @@ export async function getAdminDashboard() {
     prisma.property.count(),
     prisma.rentalAgreement.count(),
     prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 20, include: { actor: true } }),
-    prisma.taxRule.findFirst({ where: { isActive: true } }),
+    prisma.taxRule.findFirst({ where: { isActive: true }, include: { brackets: { orderBy: { sortOrder: "asc" } } } }),
     prisma.systemConfiguration.findMany(),
   ]);
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,16 +12,23 @@ import { SubmitPropertyButton } from "@/components/property/submit-property-butt
 export default async function OwnerPropertyDetailPage({ params }: PageProps<"/dashboard/owner/properties/[id]">) {
   const { id } = await params;
   const session = await auth();
-  const property = await prisma.property.findUnique({
-    where: { id },
-    include: {
-      subCity: true,
-      woreda: true,
-      documents: true,
-      ownerships: { include: { ownerProfile: true } },
-      reviews: { orderBy: { createdAt: "desc" }, include: { reviewer: true } },
-    },
-  });
+  const [property, t, tEnumProperty, tEnumConstruction, tEnumFurnished, tEnumOwnership] = await Promise.all([
+    prisma.property.findUnique({
+      where: { id },
+      include: {
+        subCity: true,
+        woreda: true,
+        documents: true,
+        ownerships: { include: { ownerProfile: true } },
+        reviews: { orderBy: { createdAt: "desc" }, include: { reviewer: true } },
+      },
+    }),
+    getTranslations("property"),
+    getTranslations("enums.propertyType"),
+    getTranslations("enums.constructionType"),
+    getTranslations("enums.furnishedStatus"),
+    getTranslations("enums.ownershipType"),
+  ]);
   if (!property) notFound();
 
   const isOwner = property.ownerships.some(
@@ -33,7 +41,7 @@ export default async function OwnerPropertyDetailPage({ params }: PageProps<"/da
       <PageHeader
         title={property.title}
         breadcrumbs={[
-          { label: "My Properties", href: "/dashboard/owner/properties" },
+          { label: t("myProperties"), href: "/dashboard/owner/properties" },
           { label: property.code },
         ]}
         actions={<StatusBadge status={property.status} />}
@@ -41,20 +49,20 @@ export default async function OwnerPropertyDetailPage({ params }: PageProps<"/da
 
       <Card>
         <CardHeader>
-          <CardTitle>Details</CardTitle>
+          <CardTitle>{t("detailsTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 text-sm">
-          <Field label="Property Type" value={property.propertyType.replaceAll("_", " ")} />
-          <Field label="Construction Type" value={property.constructionType.replaceAll("_", " ")} />
-          <Field label="Rooms" value={String(property.numberOfRooms)} />
-          <Field label="Furnished" value={property.furnishedStatus.replaceAll("_", " ")} />
-          <Field label="Sub-city" value={property.subCity.name} />
-          <Field label="Woreda" value={property.woreda?.number ?? "-"} />
-          <Field label="House Number" value={property.houseNumber} />
-          <Field label="Asking Rent" value={`${Number(property.askingRentEtb).toLocaleString()} ETB / month`} />
+          <Field label={t("propertyType")} value={tEnumProperty(property.propertyType)} />
+          <Field label={t("constructionType")} value={tEnumConstruction(property.constructionType)} />
+          <Field label={t("rooms")} value={String(property.numberOfRooms)} />
+          <Field label={t("furnished")} value={tEnumFurnished(property.furnishedStatus)} />
+          <Field label={t("subCity")} value={property.subCity.name} />
+          <Field label={t("woreda")} value={property.woreda?.number ?? "-"} />
+          <Field label={t("houseNumber")} value={property.houseNumber} />
+          <Field label={t("askingRent")} value={`${Number(property.askingRentEtb).toLocaleString()} ETB ${t("perMonth")}`} />
           {property.description && (
             <div className="sm:col-span-2">
-              <p className="text-muted-foreground">Description</p>
+              <p className="text-muted-foreground">{t("description")}</p>
               <p>{property.description}</p>
             </div>
           )}
@@ -63,16 +71,16 @@ export default async function OwnerPropertyDetailPage({ params }: PageProps<"/da
 
       <Card>
         <CardHeader>
-          <CardTitle>Ownership</CardTitle>
+          <CardTitle>{t("ownershipTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           {property.ownerships.map((o) => (
             <div key={o.id} className="flex items-center justify-between rounded-md border p-2">
               <span>
-                {o.ownershipType.replaceAll("_", " ")}
+                {tEnumOwnership(o.ownershipType)}
                 {o.sharePercentage ? ` — ${Number(o.sharePercentage)}%` : ""}
               </span>
-              {o.isPrimaryContact && <span className="text-xs text-muted-foreground">Primary contact</span>}
+              {o.isPrimaryContact && <span className="text-xs text-muted-foreground">{t("primaryContact")}</span>}
             </div>
           ))}
         </CardContent>
@@ -81,7 +89,7 @@ export default async function OwnerPropertyDetailPage({ params }: PageProps<"/da
       {property.reviewComment && (
         <Card>
           <CardHeader>
-            <CardTitle>Latest Review Comment</CardTitle>
+            <CardTitle>{t("latestReviewComment")}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">{property.reviewComment}</CardContent>
         </Card>
@@ -89,14 +97,14 @@ export default async function OwnerPropertyDetailPage({ params }: PageProps<"/da
 
       <Card>
         <CardHeader>
-          <CardTitle>Review History</CardTitle>
+          <CardTitle>{t("reviewHistoryTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {property.reviews.length === 0 && <p className="text-muted-foreground">No review activity yet.</p>}
+          {property.reviews.length === 0 && <p className="text-muted-foreground">{t("noReviewActivity")}</p>}
           {property.reviews.map((r) => (
             <div key={r.id} className="border-b pb-2 last:border-0">
               <p className="font-medium">
-                {r.action.replaceAll("_", " ")} by {r.reviewer.firstName} {r.reviewer.lastName}
+                {r.action.replaceAll("_", " ")} {t("byOwner", { ownerName: `${r.reviewer.firstName} ${r.reviewer.lastName}` })}
               </p>
               {r.comment && <p className="text-muted-foreground">{r.comment}</p>}
               <p className="text-xs text-muted-foreground">{r.createdAt.toLocaleString()}</p>
@@ -111,7 +119,7 @@ export default async function OwnerPropertyDetailPage({ params }: PageProps<"/da
         )}
         {(property.status === "APPROVED" || property.status === "ACTIVE") && (
           <Button asChild>
-            <Link href={`/dashboard/owner/agreements/new?propertyId=${property.id}`}>Create Rental Agreement</Link>
+            <Link href={`/dashboard/owner/agreements/new?propertyId=${property.id}`}>{t("createAgreementCta")}</Link>
           </Button>
         )}
       </div>

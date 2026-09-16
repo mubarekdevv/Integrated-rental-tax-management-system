@@ -1,13 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-const TABS = [
-  { key: "all", label: "All", href: "/dashboard/housing/properties" },
-  { key: "pending", label: "Pending Review", href: "/dashboard/housing/properties/pending" },
-  { key: "approved", label: "Approved", href: "/dashboard/housing/properties/approved" },
-] as const;
-
 export function PropertyViewTabs({ active }: { active: "all" | "pending" | "approved" }) {
+  const t = useTranslations("property");
+  const TABS = [
+    { key: "all", label: t("tabAll"), href: "/dashboard/housing/properties" },
+    { key: "pending", label: t("tabPending"), href: "/dashboard/housing/properties/pending" },
+    { key: "approved", label: t("tabApproved"), href: "/dashboard/housing/properties/approved" },
+  ] as const;
   return (
     <div className="mb-4 flex flex-wrap gap-1 border-b">
       {TABS.map((tab) => (

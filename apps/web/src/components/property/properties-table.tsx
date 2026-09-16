@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Home } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,9 +17,11 @@ export interface PropertyRow {
   status: string;
 }
 
-export function PropertiesTable({ properties, detailBasePath }: { properties: PropertyRow[]; detailBasePath: string }) {
+export async function PropertiesTable({ properties, detailBasePath }: { properties: PropertyRow[]; detailBasePath: string }) {
+  const [t, tCommon] = await Promise.all([getTranslations("property"), getTranslations("common")]);
+
   if (properties.length === 0) {
-    return <EmptyState icon={Home} title="No properties" description="No properties match this view right now." />;
+    return <EmptyState icon={Home} title={t("noPropertiesEmptyTitle")} description={t("noPropertiesMatchView")} />;
   }
 
   return (
@@ -28,13 +31,13 @@ export function PropertiesTable({ properties, detailBasePath }: { properties: Pr
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Sub-city</TableHead>
-                <TableHead>Rent</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("code")}</TableHead>
+                <TableHead>{t("propertyTitle")}</TableHead>
+                <TableHead>{t("owner")}</TableHead>
+                <TableHead>{t("subCity")}</TableHead>
+                <TableHead>{t("rent")}</TableHead>
+                <TableHead>{tCommon("status")}</TableHead>
+                <TableHead className="text-right">{tCommon("actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -50,7 +53,7 @@ export function PropertiesTable({ properties, detailBasePath }: { properties: Pr
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`${detailBasePath}/${p.id}`}>View</Link>
+                      <Link href={`${detailBasePath}/${p.id}`}>{tCommon("view")}</Link>
                     </Button>
                   </TableCell>
                 </TableRow>

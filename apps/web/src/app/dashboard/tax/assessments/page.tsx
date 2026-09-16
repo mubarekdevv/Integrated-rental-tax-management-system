@@ -26,7 +26,7 @@ export default async function TaxAssessmentsPage() {
                 <TableRow>
                   <TableHead>Agreement</TableHead>
                   <TableHead>Period</TableHead>
-                  <TableHead>Rate</TableHead>
+                  <TableHead>Effective Rate</TableHead>
                   <TableHead>Tax Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>

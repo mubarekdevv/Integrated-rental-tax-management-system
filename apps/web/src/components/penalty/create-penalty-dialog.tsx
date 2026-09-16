@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,8 @@ export function CreatePenaltyDialog({
   const [delayDays, setDelayDays] = useState("0");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const t = useTranslations("penalty");
+  const tCommon = useTranslations("common");
 
   const selectedAgreement = agreements.find((a) => a.id === agreementId);
   const selectedRule = penaltyRules.find((r) => r.id === ruleId);
@@ -47,16 +50,16 @@ export function CreatePenaltyDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <Plus className="size-4" /> Record Penalty
+          <Plus className="size-4" /> {t("recordCta")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Record a Penalty</DialogTitle>
+          <DialogTitle>{t("recordDialogTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label>Agreement</Label>
+            <Label>{t("agreementField")}</Label>
             <Select value={agreementId} onValueChange={(v) => setAgreementId(v ?? "")}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -71,7 +74,7 @@ export function CreatePenaltyDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Penalty Rule</Label>
+            <Label>{t("rule")}</Label>
             <Select value={ruleId} onValueChange={(v) => setRuleId(v ?? "")}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -87,13 +90,13 @@ export function CreatePenaltyDialog({
           </div>
           {selectedRule?.calculationType === "PER_DAY_LATE" && (
             <div className="space-y-2">
-              <Label>Delay (days)</Label>
+              <Label>{t("delayDays")}</Label>
               <Input type="number" min={0} value={delayDays} onChange={(e) => setDelayDays(e.target.value)} />
             </div>
           )}
           <div className="space-y-2">
-            <Label>Reason</Label>
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Explain the compliance issue..." />
+            <Label>{tCommon("reason")}</Label>
+            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("reasonPlaceholder")} />
           </div>
         </div>
         <DialogFooter>
@@ -111,18 +114,18 @@ export function CreatePenaltyDialog({
                     baseAmountEtb: selectedAgreement.rentalAmountEtb,
                     agreementId: selectedAgreement.id,
                   });
-                  toast.success("Penalty recorded.");
+                  toast.success(t("recordedToast"));
                   setOpen(false);
                   setReason("");
                   router.refresh();
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not record penalty.");
+                  toast.error(error instanceof Error ? error.message : t("recordFailedToast"));
                 }
               })
             }
           >
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Record penalty
+            {t("recordSubmit")}
           </Button>
         </DialogFooter>
       </DialogContent>

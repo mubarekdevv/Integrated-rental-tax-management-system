@@ -21,12 +21,23 @@ import {
   requestTermination,
 } from "../src/lib/services/agreement.service";
 import { initiatePayment } from "../src/lib/services/payment.service";
-import { assessTax } from "../src/lib/services/tax.service";
+import { assessTax, calculateProgressiveTax } from "../src/lib/services/tax.service";
 import { createPenalty, reviewPenalty } from "../src/lib/services/penalty.service";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`ASSERTION FAILED: ${message}`);
 }
+
+// Must match the brackets seeded in prisma/seed.ts (PwC Worldwide Tax
+// Summaries — Ethiopia, individual rental income tax). See docs/ASSUMPTIONS.md.
+const DEMO_TAX_BRACKETS = [
+  { minAmountEtb: 0, maxAmountEtb: 24000, ratePercentage: 0, sortOrder: 0 },
+  { minAmountEtb: 24001, maxAmountEtb: 48000, ratePercentage: 15, sortOrder: 1 },
+  { minAmountEtb: 48001, maxAmountEtb: 84000, ratePercentage: 20, sortOrder: 2 },
+  { minAmountEtb: 84001, maxAmountEtb: 120000, ratePercentage: 25, sortOrder: 3 },
+  { minAmountEtb: 120001, maxAmountEtb: 168000, ratePercentage: 30, sortOrder: 4 },
+  { minAmountEtb: 168001, maxAmountEtb: null, ratePercentage: 35, sortOrder: 5 },
+];
 
 async function main() {
   console.log("== Verifying end-to-end rental lifecycle ==\n");
@@ -147,9 +158,20 @@ async function main() {
     actorId: taxOfficer.id,
   });
   assert(assessment.status === "ASSESSED", "assessment should be ASSESSED");
-  const expectedTax = Math.round(20000 * 12 * 0.115 * 100) / 100;
-  assert(Number(assessment.taxAmountEtb) === expectedTax, `tax should be computed from the active 11.5% rule (expected ${expectedTax}, got ${assessment.taxAmountEtb})`);
-  console.log(`   Assessed ${assessment.taxAmountEtb} ETB tax (rate applied: ${assessment.rateApplied}%).\n`);
+  // Rental income tax is progressive (PwC Worldwide Tax Summaries — Ethiopia;
+  // see docs/ASSUMPTIONS.md), never a single flat rate — recompute the
+  // expectation from the same bracket function assessTax() uses internally,
+  // rather than hand-deriving a literal number.
+  const { taxAmountEtb: expectedTax } = calculateProgressiveTax(20000 * 12, DEMO_TAX_BRACKETS);
+  assert(
+    Number(assessment.taxAmountEtb) === expectedTax,
+    `tax should be computed progressively from the active brackets, never a flat rate (expected ${expectedTax}, got ${assessment.taxAmountEtb})`
+  );
+  assert(
+    Number(assessment.rateApplied) !== 11.5,
+    "rateApplied must never equal the old flat 11.5% figure — it is a blended effective rate, not a rent-increase percentage or a hard-coded tax rate"
+  );
+  console.log(`   Assessed ${assessment.taxAmountEtb} ETB tax (effective rate: ${assessment.rateApplied}%).\n`);
 
   console.log("11. Owner pays the assessed tax...");
   await initiatePayment({

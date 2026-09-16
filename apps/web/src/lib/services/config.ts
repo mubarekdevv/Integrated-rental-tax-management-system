@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db/prisma";
 
 /**
- * The rental income tax rate (11.5% at the time of the interview that
- * informed this project) is never hard-coded in business logic. It is read
- * from the currently active TaxRule row, which an authorized SUPER_ADMIN can
- * update through the admin console. See docs/ASSUMPTIONS.md.
+ * Rental income tax is progressive (see docs/ASSUMPTIONS.md) and is never
+ * hard-coded in business logic. The bracket set is read from the currently
+ * active TaxRule row, which an authorized SUPER_ADMIN can update through the
+ * admin console.
  */
 export async function getActiveTaxRule(referenceDate: Date = new Date()) {
   const rule = await prisma.taxRule.findFirst({
@@ -14,6 +14,7 @@ export async function getActiveTaxRule(referenceDate: Date = new Date()) {
       OR: [{ effectiveTo: null }, { effectiveTo: { gte: referenceDate } }],
     },
     orderBy: { effectiveFrom: "desc" },
+    include: { brackets: { orderBy: { sortOrder: "asc" } } },
   });
   if (!rule) {
     throw new Error("No active tax rule is configured. An admin must configure one.");

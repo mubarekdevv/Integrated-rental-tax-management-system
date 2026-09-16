@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,19 +15,20 @@ export function RequestTerminationButton({ agreementId }: { agreementId: string 
   const [reason, setReason] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const t = useTranslations("agreement");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <LogOut className="size-4" /> Request Termination
+          <LogOut className="size-4" /> {t("requestTerminationCta")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Request Termination</DialogTitle>
+          <DialogTitle>{t("requestTerminationDialogTitle")}</DialogTitle>
         </DialogHeader>
-        <Textarea placeholder="Reason for terminating this agreement..." value={reason} onChange={(e) => setReason(e.target.value)} />
+        <Textarea placeholder={t("terminationReasonPlaceholder")} value={reason} onChange={(e) => setReason(e.target.value)} />
         <DialogFooter>
           <Button
             disabled={pending || !reason}
@@ -34,17 +36,17 @@ export function RequestTerminationButton({ agreementId }: { agreementId: string 
               startTransition(async () => {
                 try {
                   await requestTerminationAction(agreementId, reason);
-                  toast.success("Termination requested.");
+                  toast.success(t("terminationRequestedToast"));
                   setOpen(false);
                   router.refresh();
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not request termination.");
+                  toast.error(error instanceof Error ? error.message : t("terminationRequestFailedToast"));
                 }
               })
             }
           >
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Submit request
+            {t("submitRequest")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -55,6 +57,7 @@ export function RequestTerminationButton({ agreementId }: { agreementId: string 
 export function ApproveTerminationButton({ agreementId }: { agreementId: string }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const t = useTranslations("agreement");
 
   return (
     <Button
@@ -64,16 +67,16 @@ export function ApproveTerminationButton({ agreementId }: { agreementId: string 
         startTransition(async () => {
           try {
             await approveTerminationAction(agreementId);
-            toast.success("Agreement terminated.");
+            toast.success(t("terminatedToast"));
             router.refresh();
           } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Could not terminate.");
+            toast.error(error instanceof Error ? error.message : t("terminationFailedToast"));
           }
         })
       }
     >
       {pending ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
-      Approve Termination
+      {t("approveTerminationCta")}
     </Button>
   );
 }

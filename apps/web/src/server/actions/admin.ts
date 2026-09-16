@@ -12,11 +12,27 @@ export async function createTaxRuleAction(
 ): Promise<ActionFormState> {
   const user = await requirePermission("TAX_RULE_MANAGE");
   const name = String(formData.get("name") ?? "");
-  const ratePercentage = Number(formData.get("ratePercentage"));
-  if (!name || Number.isNaN(ratePercentage) || ratePercentage <= 0) {
-    return { error: "Provide a valid name and rate." };
+  if (!name) return { error: "Provide a name for this tax rule." };
+
+  const brackets: { minAmountEtb: number; maxAmountEtb: number | null; ratePercentage: number }[] = [];
+  for (let i = 0; formData.has(`bracket_${i}_min`); i++) {
+    const min = Number(formData.get(`bracket_${i}_min`));
+    const maxRaw = String(formData.get(`bracket_${i}_max`) ?? "").trim();
+    const rate = Number(formData.get(`bracket_${i}_rate`));
+    if (Number.isNaN(min) || Number.isNaN(rate) || rate < 0) {
+      return { error: `Bracket ${i + 1} has an invalid minimum or rate.` };
+    }
+    const max = maxRaw === "" ? null : Number(maxRaw);
+    if (max !== null && (Number.isNaN(max) || max <= min)) {
+      return { error: `Bracket ${i + 1}'s maximum must be greater than its minimum (or left blank for an open-ended top bracket).` };
+    }
+    brackets.push({ minAmountEtb: min, maxAmountEtb: max, ratePercentage: rate });
   }
-  await createTaxRule({ name, ratePercentage, effectiveFrom: new Date(), actorId: user.id });
+  if (brackets.length === 0) {
+    return { error: "At least one tax bracket is required." };
+  }
+
+  await createTaxRule({ name, brackets, effectiveFrom: new Date(), actorId: user.id });
   revalidatePath("/dashboard/admin/tax-rules");
   return {};
 }

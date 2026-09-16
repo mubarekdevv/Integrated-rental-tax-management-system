@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,26 +25,27 @@ export function AssessTaxDialog({
   const [end, setEnd] = useState(defaultEnd);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const t = useTranslations("tax");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <Receipt className="size-4" /> Assess Tax
+          <Receipt className="size-4" /> {t("assess")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Assess Tax</DialogTitle>
-          <DialogDescription>Uses the currently active tax rule and rental amount for the period.</DialogDescription>
+          <DialogTitle>{t("assessDialogTitle")}</DialogTitle>
+          <DialogDescription>{t("assessDialogDescription")}</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label>Period Start</Label>
+            <Label>{t("periodStart")}</Label>
             <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Period End</Label>
+            <Label>{t("periodEnd")}</Label>
             <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
           </div>
         </div>
@@ -54,17 +56,17 @@ export function AssessTaxDialog({
               startTransition(async () => {
                 try {
                   await assessTaxAction(agreementId, new Date(start), new Date(end));
-                  toast.success("Tax assessed.");
+                  toast.success(t("assessedToast"));
                   setOpen(false);
                   router.refresh();
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not assess tax.");
+                  toast.error(error instanceof Error ? error.message : t("assessFailedToast"));
                 }
               })
             }
           >
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Assess
+            {t("assessCta")}
           </Button>
         </DialogFooter>
       </DialogContent>

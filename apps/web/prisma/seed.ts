@@ -2,6 +2,20 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { calculateProgressiveTax } from "../src/lib/services/tax.service";
+
+// Ethiopian individual rental-income tax brackets (PwC Worldwide Tax
+// Summaries — Ethiopia, rental income tax). Progressive: each rate applies
+// only to the slice of annual rental income within that bracket. See
+// docs/ASSUMPTIONS.md — this replaces the earlier, incorrect flat 11.5% rate.
+const RENTAL_INCOME_TAX_BRACKETS = [
+  { minAmountEtb: 0, maxAmountEtb: 24000, ratePercentage: 0 },
+  { minAmountEtb: 24001, maxAmountEtb: 48000, ratePercentage: 15 },
+  { minAmountEtb: 48001, maxAmountEtb: 84000, ratePercentage: 20 },
+  { minAmountEtb: 84001, maxAmountEtb: 120000, ratePercentage: 25 },
+  { minAmountEtb: 120001, maxAmountEtb: 168000, ratePercentage: 30 },
+  { minAmountEtb: 168001, maxAmountEtb: null, ratePercentage: 35 },
+];
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -101,10 +115,12 @@ async function main() {
     await prisma.taxRule.create({
       data: {
         name: "Rental Income Tax",
-        ratePercentage: 11.5,
         effectiveFrom: new Date("2023-01-01"),
         isActive: true,
         createdById: admin.id,
+        brackets: {
+          create: RENTAL_INCOME_TAX_BRACKETS.map((b, i) => ({ ...b, sortOrder: i })),
+        },
       },
     });
   }
@@ -345,15 +361,21 @@ async function main() {
       },
     });
 
+    const seedTaxableAmountEtb = 18000 * 12;
+    const { taxAmountEtb: seedTaxAmountEtb, breakdown: seedBreakdown } = calculateProgressiveTax(
+      seedTaxableAmountEtb,
+      RENTAL_INCOME_TAX_BRACKETS.map((b, i) => ({ ...b, sortOrder: i }))
+    );
     const taxAssessment1 = await prisma.taxAssessment.create({
       data: {
         agreementId: agreement1.id,
         taxRuleId: (await prisma.taxRule.findFirstOrThrow({ where: { isActive: true } })).id,
         periodStart: new Date("2025-09-01"),
         periodEnd: new Date("2026-09-01"),
-        taxableAmountEtb: 18000 * 12,
-        rateApplied: 11.5,
-        taxAmountEtb: Math.round(18000 * 12 * 0.115 * 100) / 100,
+        taxableAmountEtb: seedTaxableAmountEtb,
+        rateApplied: Math.round((seedTaxAmountEtb / seedTaxableAmountEtb) * 10000) / 100,
+        bracketBreakdown: JSON.parse(JSON.stringify(seedBreakdown)),
+        taxAmountEtb: seedTaxAmountEtb,
         status: "PAID",
         dueDate: new Date("2026-10-01"),
         assessedById: taxOfficer.id,

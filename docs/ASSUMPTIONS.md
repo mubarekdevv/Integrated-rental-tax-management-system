@@ -9,7 +9,7 @@ every numeric rule through the admin console without a code change.
 
 ## Legal sources used
 
-Two authoritative sources informed the rules below:
+Three authoritative sources informed the rules below:
 
 - **Addis Ababa City Administration Housing Development and Management
   Bureau, Directive No. 184/2025** — "Residential Rent Control and
@@ -19,28 +19,96 @@ Two authoritative sources informed the rules below:
   administrative penalty amounts in Article 22.
 - **Income Tax (Amendment) Proclamation No. 1395/2025** — referenced as the
   basis the Addis Ababa City Administration Justice Bureau uses for rental
-  income tax. We were not given the specific statutory rate text, so the
-  rate remains a configurable `TaxRule` (seeded at 11.5%, matching the
-  figure from the original project interview) — an administrator should
-  update it to the exact rate in Proclamation 1395/2025 before this is used
-  for anything beyond a demo.
+  income tax. We were not given the specific statutory bracket text from the
+  proclamation itself.
+- **PwC Worldwide Tax Summaries — Ethiopia** (taxsummaries.pwc.com), rental
+  income tax section, supplied directly by the project owner as a
+  screenshot on 2026-09-16. This is the source for the actual bracket
+  amounts/rates below. **Correction (2026-09-16): an earlier version of this
+  project incorrectly treated 11.5% as a flat, universal rental-income tax
+  rate. That was wrong — it has been removed.** Rental income tax in
+  Ethiopia is progressive, not flat; see below.
 
-## Tax
+## Tax — rental income tax (progressive brackets)
 
-- **Rate**: 11.5% rental income tax (interview figure; verify against
-  Proclamation No. 1395/2025), stored as a `TaxRule` row (`isActive: true`),
-  not a constant in code. `getActiveTaxRule()` in `src/lib/services/config.ts`
-  always reads the currently active rule. Admins create a new rate via
-  **Admin → Tax Rules**, which deactivates the old rule (preserving it for
-  historical assessments) and activates the new one from that moment
+**This section is entirely separate from any rental-price-increase
+regulation (the landlord's right to raise rent after a legal waiting
+period) — see "Rental Price Increase Regulation" below, which is a
+different rule, NOT YET IMPLEMENTED, and must never be confused with the
+tax rate.**
+
+- **Confirmed by source** (PwC Worldwide Tax Summaries — Ethiopia,
+  individual rental income tax, progressive brackets):
+
+  | Annual rental income (ETB) | Rate |
+  |---|---|
+  | 0 – 24,000 | 0% |
+  | 24,001 – 48,000 | 15% |
+  | 48,001 – 84,000 | 20% |
+  | 84,001 – 120,000 | 25% |
+  | 120,001 – 168,000 | 30% |
+  | Over 168,000 | 35% |
+
+  Each bracket's rate applies **only to the slice of income within that
+  bracket** (marginal/progressive calculation — the same mechanism as
+  personal income tax), never to the whole taxable amount. This is
+  implemented as `TaxBracket` rows under a `TaxRule` (not a single
+  `ratePercentage` scalar, which cannot represent a progressive table) and
+  calculated by the pure function `calculateProgressiveTax()` in
+  `src/lib/services/tax.service.ts` — see `scripts/verify-tax-calculation.ts`
+  for the bracket-by-bracket, boundary-value, and zero-bracket tests.
+  `TaxAssessment.rateApplied` now stores the **blended/effective rate**
+  (`taxAmountEtb / taxableAmountEtb × 100`) for display only — it is not a
+  statutory rate, and the true per-bracket math is stored alongside it in
+  `TaxAssessment.bracketBreakdown`.
+- **Project assumption (not confirmed by the source)**: the PwC table is
+  explicitly for **individuals**; the same source shows a flat 30% rate for
+  "bodies" (companies). Every seeded `PROPERTY_OWNER` in this project is an
+  individual, so the individual progressive table is applied uniformly. If
+  a company-owned property is ever modeled, this would need revisiting.
+- **Project assumption**: because the source states brackets as whole-ETB
+  ranges with a literal 1-ETB gap at each boundary (e.g. "0 to 24,000" then
+  "24,001 to 48,000"), `calculateProgressiveTax()` reproduces that gap
+  exactly as printed rather than smoothing it into continuous ranges. The
+  effect is a sub-1-ETB rounding artifact at each boundary, considered
+  immaterial for a prototype.
+- **Taxable amount**: unchanged from before — the agreement's
+  `rentalAmountEtb` is treated as a **monthly** figure; the taxable amount
+  for an assessment period is `monthlyRent × number of calendar months in
+  the period`. This annualized-equivalent figure is then run through the
+  brackets above. **Assumption, not confirmed by the source**: the source
+  states brackets in terms of *annual* rental income; how a
+  shorter-or-longer-than-12-month assessment period should be pro-rated
+  against annual brackets is not specified anywhere available to this
+  project, so no proration is applied — whatever `taxableAmountEtb` the
+  period computes is run through the brackets as-is.
+- **Rate**: stored as a set of `TaxBracket` rows under a `TaxRule`
+  (`isActive: true`), not a constant in code. `getActiveTaxRule()` in
+  `src/lib/services/config.ts` always reads the currently active rule and
+  its brackets. Admins create a new bracket table via **Admin → Tax
+  Rules**, which deactivates the old rule (preserving it and its brackets
+  for historical assessments) and activates the new one from that moment
   forward.
-- **Taxable amount**: the agreement's `rentalAmountEtb` is treated as a
-  **monthly** figure; the taxable amount for an assessment period is
-  `monthlyRent × number of calendar months in the period`. This is an
-  assumption — the real rule may differ (e.g., prorate by days, or tax
-  annually regardless of payment frequency).
 - **Due date / grace period**: configurable via the `TAX_PAYMENT_GRACE_DAYS`
   system setting (default 30 days after the assessment period ends).
+
+## Rental Price Increase Regulation — NOT IMPLEMENTED
+
+The project owner has separately described a distinct rule: a landlord
+cannot increase a tenant's rent before a legally specified waiting period
+(stated as two years) has elapsed since the agreement started or the rent
+was last increased, and after that period may only increase rent up to a
+legally permitted percentage. **This is a real, separate business rule from
+rental-income tax, and it is not yet implemented.** No waiting-period
+field, last-increase-date tracking, permitted-percentage figure, or
+validation exists in this codebase. The exact waiting period and permitted
+percentage have not yet been supplied from an authoritative source (the PwC
+screenshot provided so far covers only income tax, not this rule) — per
+explicit instruction, nothing here is guessed or hard-coded. This will be
+implemented once that source is provided, as a change scoped to
+`RentalAgreement`/`AgreementVersion` (which already tracks price-change
+history) and `updateAgreementPrice()` in `src/lib/services/agreement.service.ts`,
+kept independent of `TaxRule`/`TaxBracket`.
 
 ## Service Fee
 

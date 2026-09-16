@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,21 +31,23 @@ export function NewAgreementForm({
 }) {
   const [state, action, pending] = useActionState(createAgreementAction, initialState);
   const router = useRouter();
+  const t = useTranslations("agreement");
+  const tEnumFrequency = useTranslations("enums.paymentFrequency");
 
   useEffect(() => {
     if (state === initialState) return;
     if (!state.error && !state.fieldErrors) {
-      toast.success("Agreement submitted for housing review.");
+      toast.success(t("submittedForReviewToast"));
       router.push("/dashboard/owner/agreements");
     }
-  }, [state, router]);
+  }, [state, router, t]);
 
   const defaultProperty = properties.find((p) => p.id === defaultPropertyId) ?? properties[0];
 
   return (
     <form action={action} className="space-y-4">
       <div className="space-y-2">
-        <Label>Property</Label>
+        <Label>{t("selectProperty")}</Label>
         <Select name="propertyId" defaultValue={defaultProperty?.id}>
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -60,7 +63,7 @@ export function NewAgreementForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="tenantIdentifier">Tenant (phone, email or ID number)</Label>
+        <Label htmlFor="tenantIdentifier">{t("tenantIdentifier")}</Label>
         <Input id="tenantIdentifier" name="tenantIdentifier" placeholder="0933000001" required />
         {state.fieldErrors?.tenantIdentifier && (
           <p className="text-sm text-destructive">{state.fieldErrors.tenantIdentifier[0]}</p>
@@ -69,11 +72,11 @@ export function NewAgreementForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="startDate">Start Date</Label>
+          <Label htmlFor="startDate">{t("startDate")}</Label>
           <Input id="startDate" name="startDate" type="date" required />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="endDate">End Date</Label>
+          <Label htmlFor="endDate">{t("endDate")}</Label>
           <Input id="endDate" name="endDate" type="date" required />
           {state.fieldErrors?.endDate && <p className="text-sm text-destructive">{state.fieldErrors.endDate[0]}</p>}
         </div>
@@ -81,7 +84,7 @@ export function NewAgreementForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="rentalAmountEtb">Monthly Rent (ETB)</Label>
+          <Label htmlFor="rentalAmountEtb">{t("monthlyRent")}</Label>
           <Input
             id="rentalAmountEtb"
             name="rentalAmountEtb"
@@ -95,16 +98,16 @@ export function NewAgreementForm({
           )}
         </div>
         <div className="space-y-2">
-          <Label>Payment Frequency</Label>
+          <Label>{t("paymentFrequency")}</Label>
           <Select name="paymentFrequency" defaultValue="MONTHLY">
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="MONTHLY">Monthly</SelectItem>
-              <SelectItem value="QUARTERLY">Quarterly</SelectItem>
-              <SelectItem value="SEMI_ANNUAL">Semi-Annual</SelectItem>
-              <SelectItem value="ANNUAL">Annual</SelectItem>
+              <SelectItem value="MONTHLY">{tEnumFrequency("MONTHLY")}</SelectItem>
+              <SelectItem value="QUARTERLY">{tEnumFrequency("QUARTERLY")}</SelectItem>
+              <SelectItem value="SEMI_ANNUAL">{tEnumFrequency("SEMI_ANNUAL")}</SelectItem>
+              <SelectItem value="ANNUAL">{tEnumFrequency("ANNUAL")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -114,7 +117,7 @@ export function NewAgreementForm({
 
       <Button type="submit" disabled={pending}>
         {pending && <Loader2 className="size-4 animate-spin" />}
-        Submit agreement for review
+        {t("submitForReviewCta")}
       </Button>
     </form>
   );
