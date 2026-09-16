@@ -189,6 +189,15 @@ async function main() {
 
   console.log("12. Rent price change is recorded with history preserved...");
   const beforePrice = agreement.rentalAmountEtb;
+  // The rental price-increase regulation (see agreement.service.ts) blocks
+  // any increase within 2 years of the rent last being set. Backdate the
+  // agreement's initial version so this legitimate annual increase is
+  // actually eligible — see scripts/verify-rent-increase.ts for the
+  // dedicated, DB-free tests of the rule itself (including the block case).
+  await prisma.agreementVersion.updateMany({
+    where: { agreementId: agreement.id, versionNumber: 1 },
+    data: { createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30 * 25) },
+  });
   await updateAgreementPrice({
     agreementId: agreement.id,
     newRentalAmountEtb: 22000,

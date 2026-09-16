@@ -288,6 +288,7 @@
     "correctionDialogPlaceholder": "Explain what needs to be corrected...",
     "rejectDialogTitle": "Reject Agreement",
     "rejectDialogPlaceholder": "Reason for rejection...",
+    "rentIncreaseRuleNote": "Rent may only be increased after a 2-year waiting period since it was last set, and by no more than 11.5% above the current rent. This limit is separate from rental income tax.",
     "priceFlaggedForReview": "Price flagged for review",
     "terminationRequested": "Termination requested",
     "updatePriceDialogTitle": "Update Rental Price",

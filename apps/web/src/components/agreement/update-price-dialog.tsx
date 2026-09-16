@@ -35,6 +35,9 @@ export function UpdatePriceDialog({ agreementId, currentRentEtb }: { agreementId
           <DialogDescription>{t("updatePriceDialogDescription")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            {t("rentIncreaseRuleNote")}
+          </p>
           <div className="space-y-2">
             <Label htmlFor="new-rent">{t("newMonthlyRent")}</Label>
             <Input id="new-rent" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} />

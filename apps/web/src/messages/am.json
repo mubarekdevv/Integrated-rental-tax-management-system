@@ -288,6 +288,7 @@
     "correctionDialogPlaceholder": "ምን መስተካከል እንዳለበት ያብራሩ...",
     "rejectDialogTitle": "ውል ውድቅ አድርግ",
     "rejectDialogPlaceholder": "የውድቅ ምክንያት...",
+    "rentIncreaseRuleNote": "ኪራይ ሊጨመር የሚችለው ለመጨረሻ ጊዜ ከተወሰነበት ጊዜ ጀምሮ የ2 ዓመት የመጠባበቂያ ጊዜ ካለፈ በኋላ ብቻ ነው፣ እና ከአሁኑ ኪራይ በላይ ከ11.5% መብለጥ የለበትም። ይህ ገደብ ከኪራይ ገቢ ግብር የተለየ ነው።",
     "priceFlaggedForReview": "ዋጋ ለክለሳ ተለይቷል",
     "terminationRequested": "የውል ማቋረጥ ተጠይቋል",
     "updatePriceDialogTitle": "የኪራይ ዋጋ አዘምን",

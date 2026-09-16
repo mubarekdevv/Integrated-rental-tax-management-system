@@ -42,6 +42,9 @@ export function RenewAgreementDialog({
           <DialogDescription>{t("renewDialogDescription", { date: currentEndDate })}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            {t("rentIncreaseRuleNote")}
+          </p>
           <div className="space-y-2">
             <Label htmlFor="renew-end-date">{t("newEndDate")}</Label>
             <Input id="renew-end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />

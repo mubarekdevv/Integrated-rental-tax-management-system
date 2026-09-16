@@ -1,3 +1,4 @@
+import { differenceInCalendarMonths } from "date-fns";
 import { prisma } from "@/lib/db/prisma";
 import { checkRentalPrice } from "@/lib/services/pricing";
 import { generateAgreementNumber, generateContractNumber, generateQrToken } from "@/lib/services/reference";
@@ -6,8 +7,91 @@ import { createNotification } from "@/lib/services/notifications";
 import { getSystemConfig } from "@/lib/services/config";
 import { assertOwnsProperty, assertPartyToAgreement } from "@/lib/auth/record-access";
 import type { PaymentFrequency, UserRole } from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
 
 const DEFAULT_SERVICE_FEE_PERCENTAGE = 2; // % of the first year's rent, configurable via SystemConfiguration.
+
+// ---------------------------------------------------------------------------
+// RENTAL PRICE INCREASE REGULATION
+//
+// A separate rule from rental-income TAX (see tax.service.ts's
+// TaxBracket/calculateProgressiveTax — that is a different concept and this
+// value is never used there). As directed by the project owner for this
+// prototype: an owner may not increase a tenant's rent until a 2-year
+// (24-month) waiting period has elapsed since the rent was last set or
+// changed, and even then the new rent may not exceed 11.5% above the
+// current rent. This figure was supplied directly by the project owner as
+// a requirement for this academic prototype, not independently verified
+// against a specific proclamation article — see docs/ASSUMPTIONS.md.
+// ---------------------------------------------------------------------------
+export const RENT_INCREASE_WAITING_PERIOD_MONTHS = 24;
+export const RENT_INCREASE_MAX_PERCENTAGE = 11.5;
+
+export type RentIncreaseBlockReason = "TOO_SOON" | "EXCEEDS_MAX_PERCENTAGE";
+
+export interface RentIncreaseCheckResult {
+  allowed: boolean;
+  reason?: RentIncreaseBlockReason;
+  monthsSinceLastChange: number;
+  monthsRemaining: number;
+  maxAllowedRentEtb: number;
+}
+
+/**
+ * Pure, DB-free rule check — see scripts/verify-rent-increase.ts. Only
+ * restricts increases: a price decrease or an unchanged price is always
+ * allowed, regardless of how long it has been.
+ */
+export function checkRentIncreaseAllowed(
+  currentRentEtb: number,
+  newRentEtb: number,
+  lastPriceChangeDate: Date,
+  now: Date = new Date()
+): RentIncreaseCheckResult {
+  if (!Number.isFinite(currentRentEtb) || currentRentEtb < 0) {
+    throw new Error(`Invalid current rent amount: ${currentRentEtb}`);
+  }
+  if (!Number.isFinite(newRentEtb) || newRentEtb < 0) {
+    throw new Error(`Invalid new rent amount: ${newRentEtb}`);
+  }
+
+  const maxAllowedRentEtb = Math.round(currentRentEtb * (1 + RENT_INCREASE_MAX_PERCENTAGE / 100) * 100) / 100;
+  const monthsSinceLastChange = Math.max(0, differenceInCalendarMonths(now, lastPriceChangeDate));
+  const monthsRemaining = Math.max(0, RENT_INCREASE_WAITING_PERIOD_MONTHS - monthsSinceLastChange);
+
+  if (newRentEtb <= currentRentEtb) {
+    return { allowed: true, monthsSinceLastChange, monthsRemaining: 0, maxAllowedRentEtb };
+  }
+  if (monthsSinceLastChange < RENT_INCREASE_WAITING_PERIOD_MONTHS) {
+    return { allowed: false, reason: "TOO_SOON", monthsSinceLastChange, monthsRemaining, maxAllowedRentEtb };
+  }
+  if (newRentEtb > maxAllowedRentEtb) {
+    return { allowed: false, reason: "EXCEEDS_MAX_PERCENTAGE", monthsSinceLastChange, monthsRemaining: 0, maxAllowedRentEtb };
+  }
+  return { allowed: true, monthsSinceLastChange, monthsRemaining: 0, maxAllowedRentEtb };
+}
+
+function rentIncreaseErrorMessage(result: RentIncreaseCheckResult): string {
+  if (result.reason === "TOO_SOON") {
+    return `Rent cannot be increased yet: the ${RENT_INCREASE_WAITING_PERIOD_MONTHS}-month waiting period has not elapsed (${result.monthsSinceLastChange} of ${RENT_INCREASE_WAITING_PERIOD_MONTHS} months so far, ${result.monthsRemaining} remaining).`;
+  }
+  return `Rent increase exceeds the permitted ${RENT_INCREASE_MAX_PERCENTAGE}% cap. Maximum allowed right now: ${result.maxAllowedRentEtb.toLocaleString()} ETB.`;
+}
+
+/** The date the current rent amount took effect: the most recent version
+ * that actually set a price (CREATED, PRICE_UPDATED, or a RENEWED that
+ * changed the rent), falling back to when the agreement was created. */
+async function getLastPriceChangeDate(
+  tx: Prisma.TransactionClient,
+  agreementId: string,
+  fallbackDate: Date
+): Promise<Date> {
+  const lastPriceVersion = await tx.agreementVersion.findFirst({
+    where: { agreementId, changeType: { in: ["CREATED", "PRICE_UPDATED", "RENEWED"] } },
+    orderBy: { versionNumber: "desc" },
+  });
+  return lastPriceVersion?.createdAt ?? fallbackDate;
+}
 
 export interface CreateAgreementInput {
   propertyId: string;
@@ -246,6 +330,16 @@ export async function updateAgreementPrice(input: UpdateAgreementPriceInput) {
       orderBy: { versionNumber: "desc" },
     });
 
+    const lastPriceChangeDate = await getLastPriceChangeDate(tx, input.agreementId, agreement.createdAt);
+    const increaseCheck = checkRentIncreaseAllowed(
+      Number(agreement.rentalAmountEtb),
+      input.newRentalAmountEtb,
+      lastPriceChangeDate
+    );
+    if (!increaseCheck.allowed) {
+      throw new Error(rentIncreaseErrorMessage(increaseCheck));
+    }
+
     const updated = await tx.rentalAgreement.update({
       where: { id: input.agreementId },
       data: {
@@ -327,6 +421,18 @@ export async function renewAgreement(input: RenewAgreementInput) {
     });
 
     const rentalAmountEtb = input.newRentalAmountEtb ?? Number(agreement.rentalAmountEtb);
+
+    if (input.newRentalAmountEtb != null) {
+      const lastPriceChangeDate = await getLastPriceChangeDate(tx, input.agreementId, agreement.createdAt);
+      const increaseCheck = checkRentIncreaseAllowed(
+        Number(agreement.rentalAmountEtb),
+        input.newRentalAmountEtb,
+        lastPriceChangeDate
+      );
+      if (!increaseCheck.allowed) {
+        throw new Error(rentIncreaseErrorMessage(increaseCheck));
+      }
+    }
 
     const updated = await tx.rentalAgreement.update({
       where: { id: input.agreementId },

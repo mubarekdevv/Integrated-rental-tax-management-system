@@ -66,12 +66,20 @@ tax rate.**
   "bodies" (companies). Every seeded `PROPERTY_OWNER` in this project is an
   individual, so the individual progressive table is applied uniformly. If
   a company-owned property is ever modeled, this would need revisiting.
-- **Project assumption**: because the source states brackets as whole-ETB
-  ranges with a literal 1-ETB gap at each boundary (e.g. "0 to 24,000" then
-  "24,001 to 48,000"), `calculateProgressiveTax()` reproduces that gap
-  exactly as printed rather than smoothing it into continuous ranges. The
-  effect is a sub-1-ETB rounding artifact at each boundary, considered
-  immaterial for a prototype.
+- **Project assumption**: the source prints brackets as whole-ETB ranges with
+  a literal 1-ETB gap at each boundary (e.g. "0 to 24,000" then "24,001 to
+  48,000"). `calculateProgressiveTax()` treats these as contiguous ranges for
+  the purpose of computing the taxable slice in each bracket — i.e. the
+  15% bracket taxes every ETB above 24,000, not above 24,001 — which is the
+  standard convention for marginal/progressive tax tables (matching how
+  personal income tax brackets are normally computed) and avoids
+  systematically under-taxing income near each boundary. **Correction
+  (2026-09-16): an earlier version of this function anchored each bracket's
+  taxable slice on its own printed `minAmountEtb` (e.g. subtracting 24,001
+  instead of 24,000), which under-counted taxable income by up to 1 ETB per
+  bracket crossed, and also skipped a bracket's tax entirely when the
+  taxable amount exactly equaled its printed minimum. Both were bugs, not
+  intentional design, and have been fixed.**
 - **Taxable amount**: unchanged from before — the agreement's
   `rentalAmountEtb` is treated as a **monthly** figure; the taxable amount
   for an assessment period is `monthlyRent × number of calendar months in
@@ -92,23 +100,47 @@ tax rate.**
 - **Due date / grace period**: configurable via the `TAX_PAYMENT_GRACE_DAYS`
   system setting (default 30 days after the assessment period ends).
 
-## Rental Price Increase Regulation — NOT IMPLEMENTED
+## Rental Price Increase Regulation — IMPLEMENTED (project-owner-supplied rule)
 
-The project owner has separately described a distinct rule: a landlord
-cannot increase a tenant's rent before a legally specified waiting period
-(stated as two years) has elapsed since the agreement started or the rent
-was last increased, and after that period may only increase rent up to a
-legally permitted percentage. **This is a real, separate business rule from
-rental-income tax, and it is not yet implemented.** No waiting-period
-field, last-increase-date tracking, permitted-percentage figure, or
-validation exists in this codebase. The exact waiting period and permitted
-percentage have not yet been supplied from an authoritative source (the PwC
-screenshot provided so far covers only income tax, not this rule) — per
-explicit instruction, nothing here is guessed or hard-coded. This will be
-implemented once that source is provided, as a change scoped to
-`RentalAgreement`/`AgreementVersion` (which already tracks price-change
-history) and `updateAgreementPrice()` in `src/lib/services/agreement.service.ts`,
-kept independent of `TaxRule`/`TaxBracket`.
+A landlord may not increase a tenant's rent before a **2-year (24-month)
+waiting period** has elapsed since the rent was last set or changed, and
+even then the new rent may not exceed **11.5% above the current rent**.
+**This is a real, separate business rule from rental-income tax — it is
+never used as, and must never be confused with, the tax rate** (see the Tax
+section above, which uses a completely different, progressive mechanism).
+
+**Source and status of this figure:** the 2-year period and the 11.5% cap
+were supplied directly by the project owner as a requirement for this
+prototype (2026-09-16), not extracted from a specific cited proclamation
+article. Unlike the tax brackets above (sourced from PwC Worldwide Tax
+Summaries), this number has not been independently verified against a
+named legal citation — it is documented here as a **project requirement**,
+not a legally authoritative figure, consistent with this document's
+standing rule that every numeric business rule is configurable and
+disclosed as an assumption where its exact legal text wasn't supplied.
+
+**Implementation** (`src/lib/services/agreement.service.ts`):
+
+- `RENT_INCREASE_WAITING_PERIOD_MONTHS = 24` and
+  `RENT_INCREASE_MAX_PERCENTAGE = 11.5` are named constants, not scattered
+  magic numbers.
+- `checkRentIncreaseAllowed()` is a pure, DB-free function (see
+  `scripts/verify-rent-increase.ts`) that only restricts **increases** — a
+  price decrease or an unchanged price is always allowed regardless of
+  timing.
+- The "date the current rent took effect" is derived from existing
+  `AgreementVersion` history (the most recent `CREATED`, `PRICE_UPDATED`,
+  or rent-changing `RENEWED` version) — **no schema change was needed**,
+  since this data was already being recorded.
+- The rule is enforced in both `updateAgreementPrice()` and
+  `renewAgreement()` (when a renewal also changes the rent), so it cannot
+  be bypassed by renewing instead of explicitly updating the price.
+- **Not implemented / left as a known gap:** this rule assumes the 11.5%
+  cap and 24-month period are fixed values; they are not yet exposed as
+  admin-configurable settings the way tax brackets and penalty rules are
+  (they are code constants). If a future source specifies these should be
+  policy-configurable, that would be a small follow-up change, not a
+  redesign.
 
 ## Service Fee
 
